@@ -135,14 +135,16 @@ function game() {
         }
     }
     function detectPlayerCollision(playerInfo) {
+        var collisionDetected = false;
+
         that.barrierInfos.forEach(barrierInfo => {
             if (detectCollision(playerInfo.location, { width: playerInfo.image.width, height: playerInfo.image.height }, barrierInfo.location,
                 { width: barrierInfo.image.width, height: barrierInfo.image.height })) {
-                return true;
+                collisionDetected = true;
             }
         });
 
-        return false;
+        return collisionDetected;
     }
 
     function detectCollision(firstObjectLocation, firstObjectSize, secondObjectLocation, secondObjectSize) {
