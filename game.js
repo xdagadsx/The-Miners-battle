@@ -123,8 +123,55 @@ function game() {
             move.moveY = 0;
         }
 
-        playerInfo.location.x += move.moveX * MOVE_UNIT;
-        playerInfo.location.y += move.moveY * MOVE_UNIT;
+        var newPlayerLocation = {
+            x: playerInfo.location.x + move.moveX * MOVE_UNIT,
+            y: playerInfo.location.y + move.moveY * MOVE_UNIT
+        }
+
+        //TODO: update player location when there is no collision with any barriers or other player
+
+        if (!detectPlayerCollision(playerInfo)) {
+            playerInfo.location = newPlayerLocation;
+        }
+    }
+    function detectPlayerCollision(playerInfo) {
+        that.barrierInfos.forEach(barrierInfo => {
+            if (detectCollision(playerInfo.location, { width: playerInfo.image.width, height: playerInfo.image.height }, barrierInfo.location,
+                { width: barrierInfo.image.width, height: barrierInfo.image.height })) {
+                return true;
+            }
+        });
+
+        return false;
+    }
+
+    function detectCollision(firstObjectLocation, firstObjectSize, secondObjectLocation, secondObjectSize) {
+        var first_Object_right = firstObjectLocation.x + firstObjectSize.width;
+        var first_Object_left = firstObjectLocation.x;
+        var first_Object_down = firstObjectLocation.y + firstObjectSize.height;
+        var first_Object_top = firstObjectLocation.y;
+        var sec_Object_right = firstObjectLocation.x + firstObjectSize.width;
+        var sec_Object_left = firstObjectLocation.x;
+        var sec_Object_down = firstObjectLocation.y + firstObjectSize.height;
+        var sec_Object_top = firstObjectLocation.y;
+        var collision = false;
+        if (sec_Object_left > first_Object_left && sec_Object_left < first_Object_right) {
+            if (sec_Object_down > first_Object_top && sec_Object_down < first_Object_down) {
+                collision = true;
+            }
+
+        }
+        if (sec_Object_left > first_Object_right && sec_Object_left < first_Object_left) {
+            if (sec_Object_down > first_Object_top && sec_Object_down < first_Object_down) {
+                collision = true;
+            }
+
+        }
+
+
+        //TODO: check collision
+
+        return collision;
     }
 
     function mapDirectionToMove(direction) {
