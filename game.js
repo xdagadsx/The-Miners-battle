@@ -5,6 +5,7 @@ function game() {
     var that = this;
     that.playerInfos = new Array();
     that.bulletInfos = new Array();
+    that.barrierInfos = new Array();
 
     const MOVE_UNIT = 10;
     const BOARD_HEIGHT = 200;
@@ -23,6 +24,7 @@ function game() {
 
         that.addPlayer(new player());
         that.addPlayer(new enemy());
+        that.addBarrier(new barrier('images/tree.png'), BOARD_WIDTH / 2, BOARD_HEIGHT / 2);
 
         window.setInterval(refreshGameBoard, 200);
 
@@ -50,6 +52,16 @@ function game() {
             image: bullet.getImage()
         });
     }
+    that.addBarrier = function (barrier, barrierLocationX, barrierLocationY) {
+        that.barrierInfos.push({
+            barrier: barrier,
+            location: {
+                x: barrierLocationX,
+                y: barrierLocationY
+            },
+            image: barrier.getImage()
+        });
+    }
 
     function refreshGameBoard() {
         that.gameCanvasContext.clearRect(0, 0, that.gameCanvas.width, that.gameCanvas.height);
@@ -59,6 +71,10 @@ function game() {
         for (var i = 0; i < that.bulletInfos.length; i++) {
             moveBullet(i);
         }
+        that.barrierInfos.forEach(drawObject);
+    }
+    function drawObject(objectInfo) {
+        that.gameCanvasContext.drawImage(objectInfo.image, objectInfo.location.x, objectInfo.location.y);
     }
 
     function movePlayer(playerInfo) {
@@ -70,22 +86,22 @@ function game() {
             that.addBullet(new bullet(playerMove.direction), playerInfo.location.x, playerInfo.location.y);
         }
 
-        that.gameCanvasContext.drawImage(playerInfo.image, playerInfo.location.x, playerInfo.location.y);
+        drawObject(playerInfo);
     }
 
     function moveBullet(bulletIndex) {
         var bulletInfo = that.bulletInfos[bulletIndex];
         var bulletMove = bulletInfo.bullet.getNextMove();
         var move = mapDirectionToMove(bulletMove.direction);
-        
+
         bulletInfo.location.x += move.moveX * MOVE_UNIT;
         bulletInfo.location.y += move.moveY * MOVE_UNIT;
-        
+
         if (bulletInfo.location.x >= BOARD_WIDTH || bulletInfo.location.y >= BOARD_HEIGHT || bulletInfo.location.x <= 0 || bulletInfo.location.y <= 0) {
-            that.bulletInfos.splice(bulletIndex,1);
+            that.bulletInfos.splice(bulletIndex, 1);
         }
 
-        that.gameCanvasContext.drawImage(bulletInfo.image, bulletInfo.location.x, bulletInfo.location.y);
+        drawObject(bulletInfo);
     }
 
     function updatePlayerLocation(playerInfo, playerDirection) {
@@ -296,6 +312,18 @@ function bullet(bulletDirection) {
     that.getImage = function () {
         var image = new Image();
         image.src = 'images/fireBullet.png'
+
+        return image;
+    }
+}
+
+function barrier(imgSrc) {
+    that = this;
+    that.description = 'barrier';
+
+    that.getImage = function () {
+        var image = new Image();
+        image.src = imgSrc;
 
         return image;
     }
