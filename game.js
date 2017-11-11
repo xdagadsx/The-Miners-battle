@@ -55,7 +55,10 @@ function game() {
         that.gameCanvasContext.clearRect(0, 0, that.gameCanvas.width, that.gameCanvas.height);
 
         that.playerInfos.forEach(movePlayer);
-        that.bulletInfos.forEach(moveBullet);
+
+        for (var i = 0; i < that.bulletInfos.length; i++) {
+            moveBullet(i);
+        }
     }
 
     function movePlayer(playerInfo) {
@@ -70,11 +73,17 @@ function game() {
         that.gameCanvasContext.drawImage(playerInfo.image, playerInfo.location.x, playerInfo.location.y);
     }
 
-    function moveBullet(bulletInfo) {
+    function moveBullet(bulletIndex) {
+        var bulletInfo = that.bulletInfos[bulletIndex];
         var bulletMove = bulletInfo.bullet.getNextMove();
         var move = mapDirectionToMove(bulletMove.direction);
+        
         bulletInfo.location.x += move.moveX * MOVE_UNIT;
         bulletInfo.location.y += move.moveY * MOVE_UNIT;
+        
+        if (bulletInfo.location.x >= BOARD_WIDTH || bulletInfo.location.y >= BOARD_HEIGHT || bulletInfo.location.x <= 0 || bulletInfo.location.y <= 0) {
+            that.bulletInfos.splice(bulletIndex,1);
+        }
 
         that.gameCanvasContext.drawImage(bulletInfo.image, bulletInfo.location.x, bulletInfo.location.y);
     }
