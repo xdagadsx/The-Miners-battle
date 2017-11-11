@@ -6,8 +6,8 @@ function game() {
     that.playerInfos = new Array();
 
     const MOVE_UNIT = 10;
-    const BOARD_HEIGHT = 400;
-    const BOARD_WIDTH = 400;
+    const BOARD_HEIGHT = 200;
+    const BOARD_WIDTH = 600;
 
     var isInitialized = false;
 
@@ -91,13 +91,13 @@ function game() {
         if (playerInfo.location.x <= MOVE_UNIT && moveX < 0) {
             moveX = 0;
         }
-        if (playerInfo.location.x >= BOARD_WIDTH - MOVE_UNIT && moveX > 0) {
+        if (playerInfo.location.x >= BOARD_WIDTH - MOVE_UNIT - playerInfo.image.width && moveX > 0) {
             moveX = 0;
         }
         if (playerInfo.location.y <= MOVE_UNIT && moveY < 0) {
             moveY = 0;
         }
-        if (playerInfo.location.y >= BOARD_HEIGHT - MOVE_UNIT && moveY > 0) {
+        if (playerInfo.location.y >= BOARD_HEIGHT - MOVE_UNIT - playerInfo.image.height && moveY > 0) {
             moveY = 0;
         }
 
@@ -111,19 +111,36 @@ function game() {
 function player() {
     var currentMove = allowedMoves.None;
 
+    var pressedKeys = { ArrowDown: false, ArrowLeft: false, ArrowRight: false, ArrowUp: false };
     addEventListener('keydown', (event) => {
         switch (event.key) {
             case 'ArrowUp':
-                currentMove = allowedMoves.N;
+                pressedKeys.ArrowUp = true;
                 break;
             case 'ArrowDown':
-                currentMove = allowedMoves.S;
+                pressedKeys.ArrowDown = true;
                 break;
             case 'ArrowRight':
-                currentMove = allowedMoves.E;
+                pressedKeys.ArrowRight = true;
                 break;
             case 'ArrowLeft':
-                currentMove = allowedMoves.W;
+                pressedKeys.ArrowLeft = true;
+                break;
+        }
+    });
+    addEventListener('keyup', (event) => {
+        switch (event.key) {
+            case 'ArrowUp':
+                pressedKeys.ArrowUp = false;
+                break;
+            case 'ArrowDown':
+                pressedKeys.ArrowDown = false;
+                break;
+            case 'ArrowRight':
+                pressedKeys.ArrowRight = false;
+                break;
+            case 'ArrowLeft':
+                pressedKeys.ArrowLeft = false;
                 break;
         }
     });
@@ -131,9 +148,35 @@ function player() {
     that = this;
     that.description = 'player';
     that.getNextMove = function () {
+        console.log('Player pressed keys:' + JSON.stringify(pressedKeys));
+
+        if (pressedKeys.ArrowUp && pressedKeys.ArrowRight) {
+            currentMove = allowedMoves.NE;
+        }
+        else if (pressedKeys.ArrowUp && pressedKeys.ArrowLeft) {
+            currentMove = allowedMoves.NW;
+        }
+        else if (pressedKeys.ArrowDown && pressedKeys.ArrowRight) {
+            currentMove = allowedMoves.SE;
+        }
+        else if (pressedKeys.ArrowDown && pressedKeys.ArrowLeft) {
+            currentMove = allowedMoves.SW;
+        }
+        else if (pressedKeys.ArrowDown) {
+            currentMove = allowedMoves.S;
+        }
+        else if (pressedKeys.ArrowRight) {
+            currentMove = allowedMoves.E;
+        }
+        else if (pressedKeys.ArrowUp) {
+            currentMove = allowedMoves.N;
+        }
+        else if (pressedKeys.ArrowLeft) {
+            currentMove = allowedMoves.W;
+        }
         var nextMove = currentMove;
         currentMove = allowedMoves.None;
-        
+
         return nextMove;
     }
     that.getImage = function () {
