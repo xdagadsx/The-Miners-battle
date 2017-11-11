@@ -7,9 +7,9 @@ function game() {
     that.bulletInfos = new Array();
     that.barrierInfos = new Array();
 
-    const MOVE_UNIT = 10;
     const BOARD_HEIGHT = 200;
     const BOARD_WIDTH = 600;
+    const REFRESH_INTERVAL_IN_MS = 30;
 
     var isInitialized = false;
 
@@ -26,7 +26,7 @@ function game() {
         that.addPlayer(new enemy());
         that.addBarrier(new barrier('images/tree.png'), BOARD_WIDTH / 2, BOARD_HEIGHT / 2);
 
-        window.setInterval(refreshGameBoard, 200);
+        window.setInterval(refreshGameBoard, REFRESH_INTERVAL_IN_MS);
 
         isInitialized = true;
     }
@@ -67,12 +67,26 @@ function game() {
         that.gameCanvasContext.clearRect(0, 0, that.gameCanvas.width, that.gameCanvas.height);
 
         that.playerInfos.forEach(movePlayer);
+        that.bulletInfos.forEach(moveBullet);
+        that.barrierInfos.forEach(drawObject);
+
+        deleteUnseenBullets();
+    }
+
+    function deleteUnseenBullets() {
+        var bulletToRemoveIndexes = new Array();
 
         for (var i = 0; i < that.bulletInfos.length; i++) {
-            moveBullet(i);
+            var bulletInfo = that.bulletInfos[i];
+
+            if (bulletInfo.location.x >= BOARD_WIDTH || bulletInfo.location.y >= BOARD_HEIGHT || bulletInfo.location.x <= 0 || bulletInfo.location.y <= 0) {
+                bulletToRemoveIndexes.push(i);
+            }
         }
-        that.barrierInfos.forEach(drawObject);
+
+        bulletToRemoveIndexes.forEach(index => that.bulletInfos.splice(index, 1));
     }
+
     function drawObject(objectInfo) {
         that.gameCanvasContext.drawImage(objectInfo.image, objectInfo.location.x, objectInfo.location.y);
     }
@@ -89,17 +103,13 @@ function game() {
         drawObject(playerInfo);
     }
 
-    function moveBullet(bulletIndex) {
-        var bulletInfo = that.bulletInfos[bulletIndex];
+    function moveBullet(bulletInfo) {
         var bulletMove = bulletInfo.bullet.getNextMove();
         var move = mapDirectionToMove(bulletMove.direction);
+        var bulletMoveUnit = bulletInfo.bullet.speed * (REFRESH_INTERVAL_IN_MS / 1000);
 
-        bulletInfo.location.x += move.moveX * MOVE_UNIT;
-        bulletInfo.location.y += move.moveY * MOVE_UNIT;
-
-        if (bulletInfo.location.x >= BOARD_WIDTH || bulletInfo.location.y >= BOARD_HEIGHT || bulletInfo.location.x <= 0 || bulletInfo.location.y <= 0) {
-            that.bulletInfos.splice(bulletIndex, 1);
-        }
+        bulletInfo.location.x += move.moveX * bulletMoveUnit;
+        bulletInfo.location.y += move.moveY * bulletMoveUnit;
 
         drawObject(bulletInfo);
     }
@@ -109,23 +119,24 @@ function game() {
             return;
 
         var move = mapDirectionToMove(playerDirection);
+        var playerMoveUnit = playerInfo.player.speed * (REFRESH_INTERVAL_IN_MS / 1000);
 
-        if (playerInfo.location.x <= MOVE_UNIT && move.moveX < 0) {
+        if (playerInfo.location.x <= playerMoveUnit && move.moveX < 0) {
             move.moveX = 0;
         }
-        if (playerInfo.location.x >= BOARD_WIDTH - MOVE_UNIT - playerInfo.image.width && move.moveX > 0) {
+        if (playerInfo.location.x >= BOARD_WIDTH - playerMoveUnit - playerInfo.image.width && move.moveX > 0) {
             move.moveX = 0;
         }
-        if (playerInfo.location.y <= MOVE_UNIT && move.moveY < 0) {
+        if (playerInfo.location.y <= playerMoveUnit && move.moveY < 0) {
             move.moveY = 0;
         }
-        if (playerInfo.location.y >= BOARD_HEIGHT - MOVE_UNIT - playerInfo.image.height && move.moveY > 0) {
+        if (playerInfo.location.y >= BOARD_HEIGHT - playerMoveUnit - playerInfo.image.height && move.moveY > 0) {
             move.moveY = 0;
         }
 
         var newPlayerLocation = {
-            x: playerInfo.location.x + move.moveX * MOVE_UNIT,
-            y: playerInfo.location.y + move.moveY * MOVE_UNIT
+            x: playerInfo.location.x + move.moveX * playerMoveUnit,
+            y: playerInfo.location.y + move.moveY * playerMoveUnit
         }
 
         //TODO: update player location when there is no collision with any barriers or other player
@@ -157,6 +168,7 @@ function game() {
         var sec_Object_down = firstObjectLocation.y + firstObjectSize.height;
         var sec_Object_top = firstObjectLocation.y;
         var collision = false;
+
         if (sec_Object_left > first_Object_left && sec_Object_left < first_Object_right) {
             if (sec_Object_down > first_Object_top && sec_Object_down < first_Object_down) {
                 collision = true;
@@ -259,6 +271,7 @@ function player() {
 
     that = this;
     that.description = 'player';
+    that.speed = 40;
     that.getNextMove = function () {
         console.log('Player pressed keys:' + JSON.stringify(pressedKeys));
 
@@ -306,41 +319,56 @@ function player() {
 }
 
 function enemy() {
+    const NUMBER_OF_REPLAYS = 8;
+    var numberOfMoveReplays = NUMBER_OF_REPLAYS;
+    var currentMoveDirection = directions.None;
+
     that = this;
     that.description = 'enemy';
-
+    that.speed = 40;
     that.getNextMove = function () {
-        var randDirection = Math.floor((Math.random() * 10)) % 8;
-        var moveDirection = directions.E;
+        if (--numberOfMoveReplays > 0) {
+            return { type: allowedMoves.Move, direction: currentMoveDirection };
+        }
+
+        numberOfMoveReplays = NUMBER_OF_REPLAYS;
+        var randDirection = Math.floor((Math.random() * 10)) % 10;
 
         switch (randDirection) {
             case 0:
-                moveDirection = directions.N
+                currentMoveDirection = directions.N
                 break;
             case 1:
-                moveDirection = directions.NE
+                currentMoveDirection = directions.NE
                 break;
             case 2:
-                moveDirection = directions.NW
+                currentMoveDirection = directions.NW
                 break;
             case 3:
-                moveDirection = directions.E
+                currentMoveDirection = directions.E
                 break;
             case 4:
-                moveDirection = directions.W
+                currentMoveDirection = directions.W
                 break;
             case 5:
-                moveDirection = directions.S
+                currentMoveDirection = directions.S
                 break;
             case 6:
-                moveDirection = directions.SE
+                currentMoveDirection = directions.SE
                 break;
             case 7:
-                moveDirection = directions.SW
+                currentMoveDirection = directions.SW
                 break;
+            case 8:
+                currentMoveDirection = directions.None
+                break;
+            case 9:
+                if (currentMoveDirection !== directions.None) {
+                    return { type: allowedMoves.Shoot, direction: currentMoveDirection };
+                }
         }
 
-        return { type: allowedMoves.Move, direction: moveDirection };
+        return { type: allowedMoves.Move, direction: currentMoveDirection };
     }
 
     that.getImage = function () {
@@ -353,7 +381,7 @@ function enemy() {
 function bullet(bulletDirection) {
     that = this;
     that.description = 'bullet';
-
+    that.speed = 60;
     that.getNextMove = function () {
         return { type: allowedMoves.Move, direction: bulletDirection };
     }
