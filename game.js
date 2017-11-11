@@ -4,6 +4,7 @@ gameObject = new game();
 function game() {
     var that = this;
     that.playerInfos = new Array();
+    that.bulletInfos = new Array();
 
     const MOVE_UNIT = 10;
     const BOARD_HEIGHT = 200;
@@ -39,81 +40,114 @@ function game() {
         });
     }
 
+    that.addBullet = function (bullet, bulletLocationX, bulletLocationY) {
+        that.bulletInfos.push({
+            bullet: bullet,
+            location: {
+                x: bulletLocationX,
+                y: bulletLocationY
+            },
+            image: bullet.getImage()
+        });
+    }
+
     function refreshGameBoard() {
         that.gameCanvasContext.clearRect(0, 0, that.gameCanvas.width, that.gameCanvas.height);
 
-        that.playerInfos.forEach(function (playerInfo) {
-            updatePlayerLocation(playerInfo);
-
-            that.gameCanvasContext.drawImage(playerInfo.image, playerInfo.location.x, playerInfo.location.y);
-        }, this);
+        that.playerInfos.forEach(movePlayer);
+        that.bulletInfos.forEach(moveBullet);
     }
 
-    function updatePlayerLocation(playerInfo) {
+    function movePlayer(playerInfo) {
         var playerMove = playerInfo.player.getNextMove();
 
-        if (playerMove == allowedMoves.None)
+        if (playerMove.type === allowedMoves.Move)
+            updatePlayerLocation(playerInfo, playerMove.direction);
+        else if (playerMove.type === allowedMoves.Shoot) {
+            that.addBullet(new bullet(playerMove.direction), playerInfo.location.x, playerInfo.location.y);
+        }
+
+        that.gameCanvasContext.drawImage(playerInfo.image, playerInfo.location.x, playerInfo.location.y);
+    }
+
+    function moveBullet(bulletInfo) {
+        var bulletMove = bulletInfo.bullet.getNextMove();
+        var move = mapDirectionToMove(bulletMove.direction);
+        bulletInfo.location.x += move.moveX * MOVE_UNIT;
+        bulletInfo.location.y += move.moveY * MOVE_UNIT;
+
+        that.gameCanvasContext.drawImage(bulletInfo.image, bulletInfo.location.x, bulletInfo.location.y);
+    }
+
+    function updatePlayerLocation(playerInfo, playerDirection) {
+        if (playerDirection == directions.None)
             return;
 
-        var moveX = 0, moveY = 0;
+        var move = mapDirectionToMove(playerDirection);
 
-        switch (playerMove) {
-            case allowedMoves.E:
-                moveX = 1;
-                break;
-            case allowedMoves.W:
-                moveX = -1;
-                break;
-            case allowedMoves.N:
-                moveY = -1;
-                break;
-            case allowedMoves.S:
-                moveY = 1;
-                break;
-            case allowedMoves.SE:
-                moveX = 1;
-                moveY = 1;
-                break;
-            case allowedMoves.SW:
-                moveX = -1;
-                moveY = 1;
-                break;
-            case allowedMoves.NE:
-                moveX = 1;
-                moveY = -1;
-                break;
-            case allowedMoves.NW:
-                moveX = -1;
-                moveY = -1;
-                break;
+        if (playerInfo.location.x <= MOVE_UNIT && move.moveX < 0) {
+            move.moveX = 0;
+        }
+        if (playerInfo.location.x >= BOARD_WIDTH - MOVE_UNIT - playerInfo.image.width && move.moveX > 0) {
+            move.moveX = 0;
+        }
+        if (playerInfo.location.y <= MOVE_UNIT && move.moveY < 0) {
+            move.moveY = 0;
+        }
+        if (playerInfo.location.y >= BOARD_HEIGHT - MOVE_UNIT - playerInfo.image.height && move.moveY > 0) {
+            move.moveY = 0;
         }
 
-        if (playerInfo.location.x <= MOVE_UNIT && moveX < 0) {
-            moveX = 0;
-        }
-        if (playerInfo.location.x >= BOARD_WIDTH - MOVE_UNIT - playerInfo.image.width && moveX > 0) {
-            moveX = 0;
-        }
-        if (playerInfo.location.y <= MOVE_UNIT && moveY < 0) {
-            moveY = 0;
-        }
-        if (playerInfo.location.y >= BOARD_HEIGHT - MOVE_UNIT - playerInfo.image.height && moveY > 0) {
-            moveY = 0;
+        playerInfo.location.x += move.moveX * MOVE_UNIT;
+        playerInfo.location.y += move.moveY * MOVE_UNIT;
+    }
+
+    function mapDirectionToMove(direction) {
+        var move = { moveX: 0, moveY: 0 };
+
+        switch (direction) {
+            case directions.E:
+                move.moveX = 1;
+                break;
+            case directions.W:
+                move.moveX = -1;
+                break;
+            case directions.N:
+                move.moveY = -1;
+                break;
+            case directions.S:
+                move.moveY = 1;
+                break;
+            case directions.SE:
+                move.moveX = 1;
+                move.moveY = 1;
+                break;
+            case directions.SW:
+                move.moveX = -1;
+                move.moveY = 1;
+                break;
+            case directions.NE:
+                move.moveX = 1;
+                move.moveY = -1;
+                break;
+            case directions.NW:
+                move.moveX = -1;
+                move.moveY = -1;
+                break;
         }
 
-        playerInfo.location.x += moveX * MOVE_UNIT;
-        playerInfo.location.y += moveY * MOVE_UNIT;
+        return move;
     }
 
     return that;
 }
 
 function player() {
-    var currentMove = allowedMoves.None;
+    var pressedKeys = { ArrowDown: false, ArrowLeft: false, ArrowRight: false, ArrowUp: false, Space: false };
+    var faceDirection = directions.S;
 
-    var pressedKeys = { ArrowDown: false, ArrowLeft: false, ArrowRight: false, ArrowUp: false };
     addEventListener('keydown', (event) => {
-        switch (event.key) {
+        switch (event.code) {
             case 'ArrowUp':
                 pressedKeys.ArrowUp = true;
                 break;
@@ -126,10 +160,12 @@ function player() {
             case 'ArrowLeft':
                 pressedKeys.ArrowLeft = true;
                 break;
+            case 'Space':
+                pressedKeys.Space = true;
         }
     });
     addEventListener('keyup', (event) => {
-        switch (event.key) {
+        switch (event.code) {
             case 'ArrowUp':
                 pressedKeys.ArrowUp = false;
                 break;
@@ -142,6 +178,8 @@ function player() {
             case 'ArrowLeft':
                 pressedKeys.ArrowLeft = false;
                 break;
+            case 'Space':
+                pressedKeys.Space = false;
         }
     });
 
@@ -150,35 +188,41 @@ function player() {
     that.getNextMove = function () {
         console.log('Player pressed keys:' + JSON.stringify(pressedKeys));
 
+        if (pressedKeys.Space)
+            return { type: allowedMoves.Shoot, direction: faceDirection }
+
+        var moveDirection = directions.None;
         if (pressedKeys.ArrowUp && pressedKeys.ArrowRight) {
-            currentMove = allowedMoves.NE;
+            moveDirection = directions.NE;
         }
         else if (pressedKeys.ArrowUp && pressedKeys.ArrowLeft) {
-            currentMove = allowedMoves.NW;
+            moveDirection = directions.NW;
         }
         else if (pressedKeys.ArrowDown && pressedKeys.ArrowRight) {
-            currentMove = allowedMoves.SE;
+            moveDirection = directions.SE;
         }
         else if (pressedKeys.ArrowDown && pressedKeys.ArrowLeft) {
-            currentMove = allowedMoves.SW;
+            moveDirection = directions.SW;
         }
         else if (pressedKeys.ArrowDown) {
-            currentMove = allowedMoves.S;
+            moveDirection = directions.S;
         }
         else if (pressedKeys.ArrowRight) {
-            currentMove = allowedMoves.E;
+            moveDirection = directions.E;
         }
         else if (pressedKeys.ArrowUp) {
-            currentMove = allowedMoves.N;
+            moveDirection = directions.N;
         }
         else if (pressedKeys.ArrowLeft) {
-            currentMove = allowedMoves.W;
+            moveDirection = directions.W;
         }
-        var nextMove = currentMove;
-        currentMove = allowedMoves.None;
 
-        return nextMove;
+        if (moveDirection !== directions.None)
+            faceDirection = moveDirection;
+
+        return { type: allowedMoves.Move, direction: moveDirection };
     }
+
     that.getImage = function () {
         var image = new Image();
         image.src = 'images/player.png'
@@ -193,36 +237,36 @@ function enemy() {
 
     that.getNextMove = function () {
         var randDirection = Math.floor((Math.random() * 10)) % 8;
-        var move = allowedMoves.E;
+        var moveDirection = directions.E;
 
         switch (randDirection) {
             case 0:
-                move = allowedMoves.N
+                moveDirection = directions.N
                 break;
             case 1:
-                move = allowedMoves.NE
+                moveDirection = directions.NE
                 break;
             case 2:
-                move = allowedMoves.NW
+                moveDirection = directions.NW
                 break;
             case 3:
-                move = allowedMoves.E
+                moveDirection = directions.E
                 break;
             case 4:
-                move = allowedMoves.W
+                moveDirection = directions.W
                 break;
             case 5:
-                move = allowedMoves.S
+                moveDirection = directions.S
                 break;
             case 6:
-                move = allowedMoves.SE
+                moveDirection = directions.SE
                 break;
             case 7:
-                move = allowedMoves.SW
+                moveDirection = directions.SW
                 break;
         }
 
-        return move;
+        return { type: allowedMoves.Move, direction: moveDirection };
     }
 
     that.getImage = function () {
@@ -232,7 +276,26 @@ function enemy() {
         return image;
     }
 }
+function bullet(bulletDirection) {
+    that = this;
+    that.description = 'bullet';
+
+    that.getNextMove = function () {
+        return { type: allowedMoves.Move, direction: bulletDirection };
+    }
+
+    that.getImage = function () {
+        var image = new Image();
+        image.src = 'images/fireBullet.png'
+
+        return image;
+    }
+}
 
 const allowedMoves = {
+    Move: 'Move', Shoot: 'Shoot'
+}
+
+const directions = {
     None: 'None', N: 'N', S: 'S', W: 'W', E: 'E', SE: 'SE', SW: 'SW', NE: 'NE', NW: 'NW'
 };
