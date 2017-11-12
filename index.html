@@ -7,10 +7,10 @@
 </head>
 
 <body>
-    <canvas id='gameCanvas' style="background-color: aquamarine"> </canvas>
+    <canvas id='gameCanvas' width="600" height="400" style="background-color: aquamarine"> </canvas>
 
     <script>
-        gameObject.initialize();
+        gameObject.initialize({gameCanvas: document.getElementById('gameCanvas')});
     </script>
 </body>
 

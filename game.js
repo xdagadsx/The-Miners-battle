@@ -7,21 +7,21 @@ function game() {
     that.bulletInfos = new Array();
     that.barrierInfos = new Array();
 
-    var board_height = 400;
-    var board_width = 400;
-
-    const REFRESH_INTERVAL_IN_MS = 30;
+    var board_height = undefined;
+    var board_width = undefined;
+    
+    const FPS = 30;
 
     var isInitialized = false;
 
-    that.initialize = function () {
+    that.initialize = function (gameConfig) {
         if (isInitialized) return;
 
-        that.gameCanvas = document.getElementById('gameCanvas');
-        that.gameCanvas.height = board_height;
-        that.gameCanvas.width = board_width;
+        that.gameCanvas = gameConfig.gameCanvas;
+        board_height = that.gameCanvas.height;
+        board_width = that.gameCanvas.width;
 
-        that.gameCanvasContext = gameCanvas.getContext("2d");
+        that.gameCanvasContext = that.gameCanvas.getContext("2d");
 
         that.addPlayer(new player());
         that.addPlayer(new enemy());
@@ -29,7 +29,7 @@ function game() {
         that.addPlayer(new enemy());
         that.addBarrier(new barrier('images/tree.png'), board_width / 2, board_height / 2);
 
-        window.setInterval(refreshGameBoard, REFRESH_INTERVAL_IN_MS);
+        window.setInterval(refreshGameBoard, 1000/FPS);
 
         isInitialized = true;
     }
@@ -109,7 +109,7 @@ function game() {
     function moveBullet(bulletInfo) {
         var bulletMove = bulletInfo.bullet.getNextMove();
         var move = mapDirectionToMove(bulletMove.direction);
-        var bulletMoveUnit = bulletInfo.bullet.speed * (REFRESH_INTERVAL_IN_MS / 1000);
+        var bulletMoveUnit = bulletInfo.bullet.speed / FPS;
 
         bulletInfo.location.x += move.moveX * bulletMoveUnit;
         bulletInfo.location.y += move.moveY * bulletMoveUnit;
@@ -122,7 +122,7 @@ function game() {
             return;
 
         var move = mapDirectionToMove(playerDirection);
-        var playerMoveUnit = playerInfo.player.speed * (REFRESH_INTERVAL_IN_MS / 1000);
+        var playerMoveUnit = playerInfo.player.speed / FPS;
 
         if (playerInfo.location.x <= playerMoveUnit && move.moveX < 0) {
             move.moveX = 0;
