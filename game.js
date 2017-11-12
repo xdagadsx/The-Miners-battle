@@ -29,7 +29,7 @@ function game() {
         that.addPlayer(new enemy());
         that.addBarrier(new barrier('images/tree.png'));
 
-        window.setInterval(refreshGameBoard, 1000 / FPS);
+        window.setInterval(updateGame, 1000 / FPS);
 
         isInitialized = true;
     }
@@ -89,23 +89,39 @@ function game() {
         return newLocation;
     }
 
-    function refreshGameBoard() {
+    function updateGame() {
         that.gameCanvasContext.clearRect(0, 0, that.gameCanvas.width, that.gameCanvas.height);
+
+        //draw static objects
+        that.barrierInfos.forEach(drawObject);
 
         that.playerInfos.forEach(movePlayer);
         that.bulletInfos.forEach(moveBullet);
-        that.barrierInfos.forEach(drawObject);
 
-        deleteUnseenBullets();
+        //check player collisions with bullets and update health
+        for (var i = 0; i < that.playerInfos.length; ++i) {
+            var playerInfo = that.playerInfos[i];
+
+            for (var j = 0; j < that.bulletInfos.length; ++j) {
+                var bulletInfo = that.bulletInfos[j];
+                if (detectCollision(playerInfo.location, playerInfo.image, bulletInfo.location, bulletInfo.image)) {
+                    playerInfo.player.hp -= bulletInfo.bullet.damage;
+                    bulletInfo.toRemove = true;
+                }
+            }
+        }
+
+        deleteNotNeededBullets();
+        that.playerInfos = that.playerInfos.filter(pi => pi.player.hp > 0);
     }
 
-    function deleteUnseenBullets() {
+    function deleteNotNeededBullets() {
         var bulletToRemoveIndexes = new Array();
 
         for (var i = 0; i < that.bulletInfos.length; i++) {
             var bulletInfo = that.bulletInfos[i];
 
-            if (bulletInfo.location.x >= board_width || bulletInfo.location.y >= board_height || bulletInfo.location.x <= 0 || bulletInfo.location.y <= 0) {
+            if (bulletInfo.toRemove || bulletInfo.location.x >= board_width || bulletInfo.location.y >= board_height || bulletInfo.location.x <= 0 || bulletInfo.location.y <= 0) {
                 bulletToRemoveIndexes.push(i);
             }
         }
@@ -297,9 +313,10 @@ function player() {
 
     that = this;
     that.description = 'player';
+    that.hp = 400;
     that.speed = 40;
     that.getNextMove = function () {
-        if (pressedKeys.Space){
+        if (pressedKeys.Space) {
             pressedKeys.Space = false;
             return { type: allowedMoves.Shoot, direction: faceDirection }
         }
@@ -352,6 +369,7 @@ function enemy() {
     that = this;
     that.description = 'enemy';
     that.speed = 40;
+    that.hp = 100;
     that.getNextMove = function () {
         if (--numberOfMoveReplays > 0) {
             return { type: allowedMoves.Move, direction: currentMoveDirection };
@@ -408,6 +426,7 @@ function bullet(bulletDirection) {
     that = this;
     that.description = 'bullet';
     that.speed = 60;
+    that.damage = 40;
     that.getNextMove = function () {
         return { type: allowedMoves.Move, direction: bulletDirection };
     }
