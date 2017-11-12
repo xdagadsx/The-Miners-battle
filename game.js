@@ -9,7 +9,7 @@ function game() {
 
     var board_height = undefined;
     var board_width = undefined;
-    
+
     const FPS = 30;
 
     var isInitialized = false;
@@ -27,21 +27,20 @@ function game() {
         that.addPlayer(new enemy());
         that.addPlayer(new enemy());
         that.addPlayer(new enemy());
-        that.addBarrier(new barrier('images/tree.png'), board_width / 2, board_height / 2);
+        that.addBarrier(new barrier('images/tree.png'));
 
-        window.setInterval(refreshGameBoard, 1000/FPS);
+        window.setInterval(refreshGameBoard, 1000 / FPS);
 
         isInitialized = true;
     }
 
     that.addPlayer = function (player) {
+        var image = player.getImage();
+
         that.playerInfos.push({
             player: player,
-            location: {
-                x: Math.floor((Math.random() * 10)) * 10,
-                y: Math.floor((Math.random() * 10)) * 10
-            },
-            image: player.getImage()
+            location: getLocationWithoutCollision(image),
+            image: image
         });
     }
 
@@ -55,15 +54,39 @@ function game() {
             image: bullet.getImage()
         });
     }
-    that.addBarrier = function (barrier, barrierLocationX, barrierLocationY) {
+    that.addBarrier = function (barrier) {
+        var image = barrier.getImage();
         that.barrierInfos.push({
             barrier: barrier,
-            location: {
-                x: barrierLocationX,
-                y: barrierLocationY
-            },
-            image: barrier.getImage()
+            location: getLocationWithoutCollision(image),
+            image: image
         });
+    }
+
+    function getLocationWithoutCollision(size) {
+        //TODO: stop when it is not possible to find correct location!
+        var correctLocation = false;
+        var newLocation = undefined;
+
+        function entireObjectIsOnBoard(location, size) {
+            return location.x >= 0 && location.y >= 0 &&
+                location.x + size.width <= board_width && location.y + size.height <= board_height
+        }
+
+        do {
+            newLocation = {
+                x: Math.floor((Math.random() * board_width)),
+                y: Math.floor((Math.random() * board_height))
+            }
+
+            var allObjectsOnBoard = that.barrierInfos.concat(that.playerInfos).concat(that.bulletInfos);
+            var collisionDetected = detectObjectCollision({ location: newLocation, image: size }, allObjectsOnBoard);
+            var objectIsOnBoard = entireObjectIsOnBoard(newLocation, size);
+
+            correctLocation = !collisionDetected && objectIsOnBoard;
+        } while (!correctLocation)
+
+        return newLocation;
     }
 
     function refreshGameBoard() {
@@ -144,28 +167,28 @@ function game() {
         var oldPlayerLocation = playerInfo.location;
         playerInfo.location = newPlayerLocation;
 
-        if (detectPlayerCollision(playerInfo)) {
+        if (detectObjectCollision(playerInfo, that.barrierInfos.concat(that.playerInfos.filter(pi => pi !== playerInfo)))) {
             playerInfo.location = oldPlayerLocation;
         }
     }
 
-    function detectPlayerCollision(playerInfo) {
+    function detectObjectCollision(objectInfo, objectInfosToCheck) {
         //TODO: Improve performance, after first conflict detected stop future processing
         var collisionDetected = false;
 
         that.barrierInfos.forEach(barrierInfo => {
-            if (detectCollision(playerInfo.location, { width: playerInfo.image.width, height: playerInfo.image.height }, barrierInfo.location,
+            if (detectCollision(objectInfo.location, { width: objectInfo.image.width, height: objectInfo.image.height }, barrierInfo.location,
                 { width: barrierInfo.image.width, height: barrierInfo.image.height })) {
                 collisionDetected = true;
             }
         });
 
         that.playerInfos.forEach(pi => {
-            if(pi === playerInfo)
+            if (pi === objectInfo)
                 return;
 
-            if (detectCollision(playerInfo.location, { width: playerInfo.image.width, height: playerInfo.image.height },
-                 pi.location, { width: pi.image.width, height: pi.image.height })) {
+            if (detectCollision(objectInfo.location, { width: objectInfo.image.width, height: objectInfo.image.height },
+                pi.location, { width: pi.image.width, height: pi.image.height })) {
                 collisionDetected = true;
             }
         });
@@ -278,7 +301,7 @@ function player() {
     that.description = 'player';
     that.speed = 40;
     that.getNextMove = function () {
-        console.log('Player pressed keys:' + JSON.stringify(pressedKeys));
+        // console.log('Player pressed keys:' + JSON.stringify(pressedKeys));
 
         if (pressedKeys.Space)
             return { type: allowedMoves.Shoot, direction: faceDirection }

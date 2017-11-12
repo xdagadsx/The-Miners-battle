@@ -1,2 +1,3 @@
 - generate players randomly on entire game board, without collision!
 - improve performance of player collision detection 
+- stop finding location for object when it is not possible to find correct location! (infinite loop)

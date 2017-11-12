@@ -75,6 +75,17 @@ test('collision detected when objects touching each other', t => {
     t.is(collisionDetected, true);
 })
 
+test('entire object is on board works correctly', t =>{
+    t.true(entireObjectIsOnBoard({x:100, y:100}, {width: 200, height: 200}));
+    t.false(entireObjectIsOnBoard({x:100, y:201}, {width: 200, height: 200}));
+})
+
+var board_height = 400;
+var board_width = 400;
+function entireObjectIsOnBoard(location, size) {
+            return location.x >= 0 && location.y >= 0 &&
+                location.x + size.width <= board_width && location.y + size.height <= board_height
+        }
 
 function detectCollision(firstObjectLocation, firstObjectSize, secondObjectLocation, secondObjectSize) {
     var x1_end = firstObjectLocation.x + firstObjectSize.width;
