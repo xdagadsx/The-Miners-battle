@@ -13,10 +13,11 @@ function game() {
     const FPS = 30;
 
     var isInitialized = false;
-
+    
     that.initialize = function (gameConfig) {
         if (isInitialized) return;
 
+        that.gameConfig = gameConfig;
         that.gameCanvas = gameConfig.gameCanvas;
         board_height = that.gameCanvas.height;
         board_width = that.gameCanvas.width;
@@ -29,6 +30,7 @@ function game() {
         that.addPlayer(new enemy());
         that.addBarrier(new barrier('images/tree.png'));
 
+        that.gameConfig.onGameInitialized(that.playerInfos.map(pi => pi.player));
         window.setInterval(updateGame, 1000 / FPS);
 
         isInitialized = true;
@@ -98,6 +100,7 @@ function game() {
         that.playerInfos.forEach(movePlayer);
         that.bulletInfos.forEach(moveBullet);
 
+        var playersStateChanged = false;
         //check player collisions with bullets and update health
         for (var i = 0; i < that.playerInfos.length; ++i) {
             var playerInfo = that.playerInfos[i];
@@ -107,12 +110,17 @@ function game() {
                 if (detectCollision(playerInfo.location, playerInfo.image, bulletInfo.location, bulletInfo.image)) {
                     playerInfo.player.hp -= bulletInfo.bullet.damage;
                     bulletInfo.toRemove = true;
+                    
+                    playersStateChanged = true;
                 }
             }
         }
 
         deleteNotNeededBullets();
         that.playerInfos = that.playerInfos.filter(pi => pi.player.hp > 0);
+        
+        if(playersStateChanged)
+            that.gameConfig.onPlayersUpdated(that.playerInfos.map(pi => pi.player));
     }
 
     function deleteNotNeededBullets() {
@@ -148,7 +156,6 @@ function game() {
             if (bulletMove.moveX === 1) {
                 bulletStartLocation.x += playerInfo.image.width + 1;
             } else if (bulletMove.moveX === 0) {
-                //throw from the middle
                 bulletStartLocation.x += (playerInfo.image.width - bulletImage.width) / 2;
             } else if (bulletMove.moveX === -1) {
                 bulletStartLocation.x -= bulletImage.width + 1;
@@ -157,7 +164,6 @@ function game() {
             if (bulletMove.moveY === 1) {
                 bulletStartLocation.y += playerInfo.image.height + 1;
             } else if (bulletMove.moveY === 0) {
-                //throw from the middle
                 bulletStartLocation.y += (playerInfo.image.height - bulletImage.height)/ 2;
             } else if (bulletMove.moveY === -1) {
                 bulletStartLocation.y -= bulletImage.height + 1;
@@ -336,7 +342,7 @@ function player() {
     });
 
     that = this;
-    that.description = 'player';
+    that.identifier = 'player';
     that.hp = 400;
     that.speed = 40;
     that.getNextMove = function () {
@@ -385,13 +391,14 @@ function player() {
     }
 }
 
+var enemyId = 1;
 function enemy() {
     const NUMBER_OF_REPLAYS = 8;
     var numberOfMoveReplays = NUMBER_OF_REPLAYS;
     var currentMoveDirection = directions.None;
 
     that = this;
-    that.description = 'enemy';
+    that.identifier = 'enemy_' + enemyId++;
     that.speed = 40;
     that.hp = 100;
     that.getNextMove = function () {

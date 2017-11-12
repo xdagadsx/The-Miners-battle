@@ -1,3 +1,9 @@
-- generate players randomly on entire game board, without collision!
+- BUG: player hp can go under 0!
+- add board background
+- generate players randomly on entire game board, without collision! Bug: object are generated outside of the board! (and sometimes with collision with barrier)
 - improve performance of player collision detection 
 - stop finding location for object when it is not possible to find correct location! (infinite loop)
+- add cross on place where player died
+- destroy bullets when they hit each other
+- show players status on page
+- BUG: sometimes bot shoot hit himself, just after shoot

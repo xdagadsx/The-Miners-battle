@@ -7,9 +7,28 @@
 
 <body>
     <canvas id='gameCanvas' width="600" height="400" style="background-color: aquamarine"> </canvas>
-
+    <div id='playersStats' />
     <script>
-        gameObject.initialize({gameCanvas: document.getElementById('gameCanvas')});
+        gameObject.initialize({
+            gameCanvas: document.getElementById('gameCanvas'),
+            onPlayersUpdated: updatePlayersStats,
+            onGameInitialized: updatePlayersStats
+        });
+
+        function updatePlayersStats(players) {
+            var statsDiv = document.getElementById('playersStats');
+
+            //clear entire div content (much faster that setting innerHtml to '')
+            while (statsDiv.firstChild) {
+                statsDiv.removeChild(statsDiv.firstChild);
+            }
+
+            players.forEach(player => {
+                var playerStatsDiv = document.createElement('div');
+                playerStatsDiv.innerHTML = "<img src='" + player.getImage().src + "'/> <span> "+ player.identifier + "</span> <span> hp: " + player.hp + " </span>"
+                statsDiv.appendChild(playerStatsDiv);
+            });
+        }
     </script>
 </body>
 
