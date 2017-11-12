@@ -139,7 +139,31 @@ function game() {
         if (playerMove.type === allowedMoves.Move)
             updatePlayerLocation(playerInfo, playerMove.direction);
         else if (playerMove.type === allowedMoves.Shoot) {
-            that.addBullet(new bullet(playerMove.direction), playerInfo.location.x, playerInfo.location.y);
+            var bulletToBeShooted = new bullet(playerMove.direction);
+            var bulletImage = bulletToBeShooted.getImage();
+
+            var bulletMove = mapDirectionToMove(playerMove.direction);
+
+            var bulletStartLocation = { x: playerInfo.location.x, y: playerInfo.location.y };
+            if (bulletMove.moveX === 1) {
+                bulletStartLocation.x += playerInfo.image.width + 1;
+            } else if (bulletMove.moveX === 0) {
+                //throw from the middle
+                bulletStartLocation.x += (playerInfo.image.width - bulletImage.width) / 2;
+            } else if (bulletMove.moveX === -1) {
+                bulletStartLocation.x -= bulletImage.width + 1;
+            }
+
+            if (bulletMove.moveY === 1) {
+                bulletStartLocation.y += playerInfo.image.height + 1;
+            } else if (bulletMove.moveY === 0) {
+                //throw from the middle
+                bulletStartLocation.y += (playerInfo.image.height - bulletImage.height)/ 2;
+            } else if (bulletMove.moveY === -1) {
+                bulletStartLocation.y -= bulletImage.height + 1;
+            }
+
+            that.addBullet(bulletToBeShooted, bulletStartLocation.x, bulletStartLocation.y);
         }
 
         drawObject(playerInfo);
@@ -431,10 +455,9 @@ function bullet(bulletDirection) {
         return { type: allowedMoves.Move, direction: bulletDirection };
     }
 
+    var image = new Image();
+    image.src = 'images/fireBullet.png'
     that.getImage = function () {
-        var image = new Image();
-        image.src = 'images/fireBullet.png'
-
         return image;
     }
 }
