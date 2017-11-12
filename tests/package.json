@@ -1,0 +1,9 @@
+{
+	"name": "game-tests-package",
+	"scripts": {
+		"test": "ava"
+	},
+	"devDependencies": {
+		"ava": "^0.20.0"
+	}
+}
