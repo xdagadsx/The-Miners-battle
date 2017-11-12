@@ -6,8 +6,15 @@
 </head>
 
 <body>
-    <canvas id='gameCanvas' width="600" height="400" style="background-color: aquamarine"> </canvas>
-    <div id='playersStats' />
+    <section>
+        <button onclick="gameObject.addPlayer(new enemy())">Add enemy</button>
+    </section>
+    <section>
+        <canvas id='gameCanvas' width="600" height="400" style="background-color: aquamarine"> </canvas>
+    </section>
+    <aside>
+        <div id='playersStats' />
+    </aside>
     <script>
         gameObject.initialize({
             gameCanvas: document.getElementById('gameCanvas'),
@@ -25,7 +32,7 @@
 
             players.forEach(player => {
                 var playerStatsDiv = document.createElement('div');
-                playerStatsDiv.innerHTML = "<img src='" + player.getImage().src + "'/> <span> "+ player.identifier + "</span> <span> hp: " + player.hp + " </span>"
+                playerStatsDiv.innerHTML = "<img src='" + player.getImage().src + "'/> <span> " + player.identifier + "</span> <span> hp: " + player.hp + " </span>"
                 statsDiv.appendChild(playerStatsDiv);
             });
         }
