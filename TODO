@@ -1,0 +1,2 @@
+- generate players randomly on entire game board, without collision!
+- improve performance of player collision detection 

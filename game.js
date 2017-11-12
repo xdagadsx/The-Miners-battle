@@ -7,8 +7,9 @@ function game() {
     that.bulletInfos = new Array();
     that.barrierInfos = new Array();
 
-    const BOARD_HEIGHT = 200;
-    const BOARD_WIDTH = 600;
+    var board_height = 400;
+    var board_width = 400;
+
     const REFRESH_INTERVAL_IN_MS = 30;
 
     var isInitialized = false;
@@ -17,14 +18,16 @@ function game() {
         if (isInitialized) return;
 
         that.gameCanvas = document.getElementById('gameCanvas');
-        that.gameCanvas.height = BOARD_HEIGHT;
-        that.gameCanvas.width = BOARD_WIDTH;
+        that.gameCanvas.height = board_height;
+        that.gameCanvas.width = board_width;
 
         that.gameCanvasContext = gameCanvas.getContext("2d");
 
         that.addPlayer(new player());
         that.addPlayer(new enemy());
-        that.addBarrier(new barrier('images/tree.png'), BOARD_WIDTH / 2, BOARD_HEIGHT / 2);
+        that.addPlayer(new enemy());
+        that.addPlayer(new enemy());
+        that.addBarrier(new barrier('images/tree.png'), board_width / 2, board_height / 2);
 
         window.setInterval(refreshGameBoard, REFRESH_INTERVAL_IN_MS);
 
@@ -79,7 +82,7 @@ function game() {
         for (var i = 0; i < that.bulletInfos.length; i++) {
             var bulletInfo = that.bulletInfos[i];
 
-            if (bulletInfo.location.x >= BOARD_WIDTH || bulletInfo.location.y >= BOARD_HEIGHT || bulletInfo.location.x <= 0 || bulletInfo.location.y <= 0) {
+            if (bulletInfo.location.x >= board_width || bulletInfo.location.y >= board_height || bulletInfo.location.x <= 0 || bulletInfo.location.y <= 0) {
                 bulletToRemoveIndexes.push(i);
             }
         }
@@ -124,13 +127,13 @@ function game() {
         if (playerInfo.location.x <= playerMoveUnit && move.moveX < 0) {
             move.moveX = 0;
         }
-        if (playerInfo.location.x >= BOARD_WIDTH - playerMoveUnit - playerInfo.image.width && move.moveX > 0) {
+        if (playerInfo.location.x >= board_width - playerMoveUnit - playerInfo.image.width && move.moveX > 0) {
             move.moveX = 0;
         }
         if (playerInfo.location.y <= playerMoveUnit && move.moveY < 0) {
             move.moveY = 0;
         }
-        if (playerInfo.location.y >= BOARD_HEIGHT - playerMoveUnit - playerInfo.image.height && move.moveY > 0) {
+        if (playerInfo.location.y >= board_height - playerMoveUnit - playerInfo.image.height && move.moveY > 0) {
             move.moveY = 0;
         }
 
@@ -138,14 +141,16 @@ function game() {
             x: playerInfo.location.x + move.moveX * playerMoveUnit,
             y: playerInfo.location.y + move.moveY * playerMoveUnit
         }
+        var oldPlayerLocation = playerInfo.location;
+        playerInfo.location = newPlayerLocation;
 
-        //TODO: update player location when there is no collision with any barriers or other player
-
-        if (!detectPlayerCollision(playerInfo)) {
-            playerInfo.location = newPlayerLocation;
+        if (detectPlayerCollision(playerInfo)) {
+            playerInfo.location = oldPlayerLocation;
         }
     }
+
     function detectPlayerCollision(playerInfo) {
+        //TODO: Improve performance, after first conflict detected stop future processing
         var collisionDetected = false;
 
         that.barrierInfos.forEach(barrierInfo => {
@@ -155,37 +160,37 @@ function game() {
             }
         });
 
+        that.playerInfos.forEach(pi => {
+            if(pi === playerInfo)
+                return;
+
+            if (detectCollision(playerInfo.location, { width: playerInfo.image.width, height: playerInfo.image.height },
+                 pi.location, { width: pi.image.width, height: pi.image.height })) {
+                collisionDetected = true;
+            }
+        });
+
         return collisionDetected;
     }
 
     function detectCollision(firstObjectLocation, firstObjectSize, secondObjectLocation, secondObjectSize) {
-        var first_Object_right = firstObjectLocation.x + firstObjectSize.width;
-        var first_Object_left = firstObjectLocation.x;
-        var first_Object_down = firstObjectLocation.y + firstObjectSize.height;
-        var first_Object_top = firstObjectLocation.y;
-        var sec_Object_right = firstObjectLocation.x + firstObjectSize.width;
-        var sec_Object_left = firstObjectLocation.x;
-        var sec_Object_down = firstObjectLocation.y + firstObjectSize.height;
-        var sec_Object_top = firstObjectLocation.y;
-        var collision = false;
+        var x1_end = firstObjectLocation.x + firstObjectSize.width;
+        var x1_start = firstObjectLocation.x;
+        var y1_end = firstObjectLocation.y + firstObjectSize.height;
+        var y1_start = firstObjectLocation.y;
+        var x2_end = secondObjectLocation.x + secondObjectSize.width;
+        var x2_start = secondObjectLocation.x;
+        var y2_end = secondObjectLocation.y + secondObjectSize.height;
+        var y2_start = secondObjectLocation.y;
 
-        if (sec_Object_left > first_Object_left && sec_Object_left < first_Object_right) {
-            if (sec_Object_down > first_Object_top && sec_Object_down < first_Object_down) {
-                collision = true;
-            }
-
-        }
-        if (sec_Object_left > first_Object_right && sec_Object_left < first_Object_left) {
-            if (sec_Object_down > first_Object_top && sec_Object_down < first_Object_down) {
-                collision = true;
-            }
-
+        function isInRange(number, rangeStart, rangeEnd) {
+            return number <= rangeEnd && number >= rangeStart;
         }
 
+        var xColliding = isInRange(x2_start, x1_start, x1_end) || isInRange(x2_end, x1_start, x1_end) || isInRange(x1_start, x2_start, x2_end) || isInRange(x1_end, x2_start, x2_end);
+        var yColliding = isInRange(y2_start, y1_start, y1_end) || isInRange(y2_end, y1_start, y1_end) || isInRange(y1_start, y2_start, y2_end) || isInRange(y1_end, y2_start, y2_end);
 
-        //TODO: check collision
-
-        return collision;
+        return xColliding && yColliding;
     }
 
     function mapDirectionToMove(direction) {
