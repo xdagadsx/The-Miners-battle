@@ -292,8 +292,6 @@ function player() {
             case 'ArrowLeft':
                 pressedKeys.ArrowLeft = false;
                 break;
-            case 'Space':
-                pressedKeys.Space = false;
         }
     });
 
@@ -301,10 +299,10 @@ function player() {
     that.description = 'player';
     that.speed = 40;
     that.getNextMove = function () {
-        // console.log('Player pressed keys:' + JSON.stringify(pressedKeys));
-
-        if (pressedKeys.Space)
+        if (pressedKeys.Space){
+            pressedKeys.Space = false;
             return { type: allowedMoves.Shoot, direction: faceDirection }
+        }
 
         var moveDirection = directions.None;
         if (pressedKeys.ArrowUp && pressedKeys.ArrowRight) {
