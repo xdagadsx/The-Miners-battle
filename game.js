@@ -29,6 +29,9 @@ function game() {
         that.addPlayer(new enemy());
         that.addPlayer(new enemy());
         that.addBarrier(new barrier('images/tree.png'));
+        that.addBarrier(new barrier('images/rock.png'));
+        that.addBarrier(new barrier('images/rock.png'));
+        that.addBarrier(new barrier('images/rock.png'));
 
         that.gameConfig.onGameInitialized(that.playerInfos.map(pi => pi.player));
         window.setInterval(updateGame, 1000 / FPS);
