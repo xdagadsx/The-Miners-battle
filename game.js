@@ -1,7 +1,137 @@
 
 gameObject = new game();
 
+
+function rectangleBaseCollisionDetector() {
+    this.detectCollision = function (firstObjectLocation, firstObjectImage, secondObjectLocation, secondObjectImage) {
+        var x1_start = firstObjectLocation.x;
+        var x1_end = firstObjectLocation.x + firstObjectImage.width;
+        var y1_start = firstObjectLocation.y;
+        var y1_end = firstObjectLocation.y + firstObjectImage.height;
+        var x2_start = secondObjectLocation.x;
+        var x2_end = secondObjectLocation.x + secondObjectImage.width;
+        var y2_start = secondObjectLocation.y;
+        var y2_end = secondObjectLocation.y + secondObjectImage.height;
+
+        function isInRange(number, rangeStart, rangeEnd) {
+            return number <= rangeEnd && number >= rangeStart;
+        }
+
+        var xColliding = isInRange(x2_start, x1_start, x1_end) || isInRange(x2_end, x1_start, x1_end) || isInRange(x1_start, x2_start, x2_end) || isInRange(x1_end, x2_start, x2_end);
+        var yColliding = isInRange(y2_start, y1_start, y1_end) || isInRange(y2_end, y1_start, y1_end) || isInRange(y1_start, y2_start, y2_end) || isInRange(y1_end, y2_start, y2_end);
+
+        return xColliding && yColliding;
+    }
+}
+//TODO: fix bugs
+function colorBaseCollisionDetector() {
+    var rectanglesCollisionDetector = new rectangleBaseCollisionDetector();
+    var testingCanvas = document.createElement('canvas');
+    var testingCanvasContext = testingCanvas.getContext('2d');
+    var imagesColorsCache = {};
+
+    this.detectCollision = function (firstObjectLocation, firstObjectImage, secondObjectLocation, secondObjectImage) {
+        if (!rectanglesCollisionDetector.detectCollision(firstObjectLocation, firstObjectImage, secondObjectLocation, secondObjectImage))
+            return false;
+
+        if (!imagesColorsCache[firstObjectImage.src])
+            addImageDataToCache(firstObjectImage);
+        if (!imagesColorsCache[secondObjectImage.src])
+            addImageDataToCache(secondObjectImage);
+
+        //use locations and image sizes to get conflicting parts of images
+        var x1_start = firstObjectLocation.x;
+        var x1_end = firstObjectLocation.x + firstObjectImage.width;
+        var y1_start = firstObjectLocation.y;
+        var y1_end = firstObjectLocation.y + firstObjectImage.height;
+        var x2_start = secondObjectLocation.x;
+        var x2_end = secondObjectLocation.x + secondObjectImage.width;
+        var y2_start = secondObjectLocation.y;
+        var y2_end = secondObjectLocation.y + secondObjectImage.height;
+
+        function isInRange(number, rangeStart, rangeEnd) {
+            return number <= rangeEnd && number >= rangeStart;
+        }
+
+        var commonX = new Array();
+        var commonY = new Array();
+
+        if (isInRange(x2_start, x1_start, x1_end))
+            commonX.push(x2_start);
+        if (isInRange(x2_end, x1_start, x1_end))
+            commonX.push(x2_end);
+        if (isInRange(x1_start, x2_start, x2_end))
+            commonX.push(x1_start);
+        if (isInRange(x1_end, x2_start, x2_end))
+            commonX.push(x1_end);
+
+        if (isInRange(y2_start, y1_start, y1_end))
+            commonY.push(y2_start);
+        if (isInRange(y2_end, y1_start, y1_end))
+            commonY.push(y2_end);
+        if (isInRange(y1_start, y2_start, y2_end))
+            commonY.push(y1_start);
+        if (isInRange(y1_end, y2_start, y2_end))
+            commonY.push(y1_end);
+
+        //compare color data from that conflicting rectangle and check if there are at least one color pixel on same location
+        commonX.sort((a, b) => (a - b)); //By default sorting using text representation, so 100 < 8 !!!
+        commonY.sort((a, b) => (a - b));
+
+        var commonX_start = commonX[0];
+        var commonX_end = commonX[1];
+        var commonY_start = commonY[0];
+        var commonY_end = commonY[1];
+
+        var firstImageXConflictStart = commonX_start - firstObjectLocation.x;
+        var firstImageYConflictStart = commonY_start - firstObjectLocation.y;
+
+        var secondImageXConflictStart = commonX_start - secondObjectLocation.x;
+        var secondImageYConflictStart = commonY_start - secondObjectLocation.y;
+
+        //once we know what part of image is conflicting, we can grab image data and check for conflict
+        var commonXLineLength = commonX_end - commonX_start;
+        var commonYLineLength = commonY_end - commonY_start;
+
+        var firstImageAlphas = imagesColorsCache[firstObjectImage.src];
+        var secondImageAlphas = imagesColorsCache[secondObjectImage.src];
+        for (var i = 0; i < commonXLineLength; ++i) {
+            for (var j = 0; j < commonYLineLength; ++j) {
+                if (firstImageAlphas[i + firstImageXConflictStart][j + firstImageYConflictStart] != 0 &&
+                    secondImageAlphas[i + secondImageXConflictStart][j + secondImageYConflictStart])
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    function addImageDataToCache(image) {
+        testingCanvasContext.drawImage(image, 0, 0);
+        var imageData = testingCanvasContext.getImageData(0, 0, image.width, image.height);
+        imagesColorsCache[image.src] = new Array(imageData.width);
+
+        for (var i = 0; i < imageData.width; ++i) {
+            var yValues = new Array(imageData.height);
+            imagesColorsCache[image.src][i] = yValues;
+            for (var j = 0; j < imageData.height; ++j) {
+                var shiftToNextLine = j * imageData.width * 4;
+                yValues[j] = imageData.data[i * 4 + shiftToNextLine + 3];//getting sum of alpha color from pixel values - not working correctly for rock
+                // yValues[j] = 0;
+                //  for(var k = 0; k<4; ++k){
+                //      yValues[j] += imageData.data[i * 4 + shiftToNextLine + k];//getting sum of all colors from pixel values
+                //  }
+            }
+        }
+
+        testingCanvasContext.clearRect(0, 0, testingCanvas.width, testingCanvas.height);
+    }
+}
+
 function game() {
+    var rectanglesCollisionDetector = new rectangleBaseCollisionDetector();
+    var colorsCollisionDetector = new colorBaseCollisionDetector();
+
     var that = this;
     that.playerInfos = new Array();
     that.bulletInfos = new Array();
@@ -13,30 +143,33 @@ function game() {
     const FPS = 30;
 
     var isInitialized = false;
-    
+
     that.initialize = function (gameConfig) {
         if (isInitialized) return;
 
-        that.gameConfig = gameConfig;
-        that.gameCanvas = gameConfig.gameCanvas;
-        board_height = that.gameCanvas.height;
-        board_width = that.gameCanvas.width;
-
-        that.gameCanvasContext = that.gameCanvas.getContext("2d");
-
-        that.addPlayer(new player());
-        that.addPlayer(new enemy());
-        that.addPlayer(new enemy());
-        that.addPlayer(new enemy());
-        that.addBarrier(new barrier('images/tree.png'));
-        that.addBarrier(new barrier('images/rock.png'));
-        that.addBarrier(new barrier('images/rock.png'));
-        that.addBarrier(new barrier('images/rock.png'));
-
-        that.gameConfig.onGameInitialized(that.playerInfos.map(pi => pi.player));
-        window.setInterval(updateGame, 1000 / FPS);
-
         isInitialized = true;
+
+        loadAllNeededImages().then(() => {
+            that.gameConfig = gameConfig;
+            that.gameCanvas = gameConfig.gameCanvas;
+            board_height = that.gameCanvas.height;
+            board_width = that.gameCanvas.width;
+
+            that.gameCanvasContext = that.gameCanvas.getContext("2d");
+
+            that.addPlayer(new player());
+            that.addPlayer(new enemy());
+            that.addPlayer(new enemy());
+            that.addPlayer(new enemy());
+            that.addBarrier(new barrier('images/tree.png'));
+            that.addBarrier(new barrier('images/rock.png'));
+            that.addBarrier(new barrier('images/rock.png'));
+            that.addBarrier(new barrier('images/rock.png'));
+            that.addBarrier(new barrier('images/rock.png'));
+
+            that.gameConfig.onGameInitialized(that.playerInfos.map(pi => pi.player));
+            window.setInterval(updateGame, 1000 / FPS);
+        });
     }
 
     that.addPlayer = function (player) {
@@ -66,6 +199,29 @@ function game() {
             location: getLocationWithoutCollision(image),
             image: image
         });
+    }
+
+    function loadAllNeededImages(){
+        var allImagesLoaded = new Promise((resolve, reject) =>{
+            var imagesCount = 0;
+            var loadedImagesCount = 0;
+            
+            for(var imageKey in images){
+                ++imagesCount;
+            }
+
+            for(var imageKey in images){
+                var img = new Image();
+                img.onload = () => { 
+                    ++loadedImagesCount;
+                    if(imagesCount == loadedImagesCount) 
+                        resolve();
+                };
+                img.src = images[imageKey];
+            }
+        });
+
+        return allImagesLoaded;
     }
 
     function getLocationWithoutCollision(size) {
@@ -110,10 +266,10 @@ function game() {
 
             for (var j = 0; j < that.bulletInfos.length; ++j) {
                 var bulletInfo = that.bulletInfos[j];
-                if (detectCollision(playerInfo.location, playerInfo.image, bulletInfo.location, bulletInfo.image)) {
+                if (rectanglesCollisionDetector.detectCollision(playerInfo.location, playerInfo.image, bulletInfo.location, bulletInfo.image)) {
                     playerInfo.player.hp -= bulletInfo.bullet.damage;
                     bulletInfo.toRemove = true;
-                    
+
                     playersStateChanged = true;
                 }
             }
@@ -121,8 +277,8 @@ function game() {
 
         deleteNotNeededBullets();
         that.playerInfos = that.playerInfos.filter(pi => pi.player.hp > 0);
-        
-        if(playersStateChanged)
+
+        if (playersStateChanged)
             that.gameConfig.onPlayersUpdated(that.playerInfos.map(pi => pi.player));
     }
 
@@ -167,7 +323,7 @@ function game() {
             if (bulletMove.moveY === 1) {
                 bulletStartLocation.y += playerInfo.image.height + 1;
             } else if (bulletMove.moveY === 0) {
-                bulletStartLocation.y += (playerInfo.image.height - bulletImage.height)/ 2;
+                bulletStartLocation.y += (playerInfo.image.height - bulletImage.height) / 2;
             } else if (bulletMove.moveY === -1) {
                 bulletStartLocation.y -= bulletImage.height + 1;
             }
@@ -210,8 +366,8 @@ function game() {
         }
 
         var newPlayerLocation = {
-            x: playerInfo.location.x + move.moveX * playerMoveUnit,
-            y: playerInfo.location.y + move.moveY * playerMoveUnit
+            x: playerInfo.location.x + Math.round(move.moveX * playerMoveUnit),
+            y: playerInfo.location.y + Math.round(move.moveY * playerMoveUnit)
         }
         var oldPlayerLocation = playerInfo.location;
         playerInfo.location = newPlayerLocation;
@@ -226,8 +382,7 @@ function game() {
         var collisionDetected = false;
 
         that.barrierInfos.forEach(barrierInfo => {
-            if (detectCollision(objectInfo.location, { width: objectInfo.image.width, height: objectInfo.image.height }, barrierInfo.location,
-                { width: barrierInfo.image.width, height: barrierInfo.image.height })) {
+            if (colorsCollisionDetector.detectCollision(objectInfo.location, objectInfo.image, barrierInfo.location, barrierInfo.image)) {
                 collisionDetected = true;
             }
         });
@@ -236,33 +391,12 @@ function game() {
             if (pi === objectInfo)
                 return;
 
-            if (detectCollision(objectInfo.location, { width: objectInfo.image.width, height: objectInfo.image.height },
-                pi.location, { width: pi.image.width, height: pi.image.height })) {
+            if (rectanglesCollisionDetector.detectCollision(objectInfo.location, objectInfo.image, pi.location, pi.image)) {
                 collisionDetected = true;
             }
         });
 
         return collisionDetected;
-    }
-
-    function detectCollision(firstObjectLocation, firstObjectSize, secondObjectLocation, secondObjectSize) {
-        var x1_end = firstObjectLocation.x + firstObjectSize.width;
-        var x1_start = firstObjectLocation.x;
-        var y1_end = firstObjectLocation.y + firstObjectSize.height;
-        var y1_start = firstObjectLocation.y;
-        var x2_end = secondObjectLocation.x + secondObjectSize.width;
-        var x2_start = secondObjectLocation.x;
-        var y2_end = secondObjectLocation.y + secondObjectSize.height;
-        var y2_start = secondObjectLocation.y;
-
-        function isInRange(number, rangeStart, rangeEnd) {
-            return number <= rangeEnd && number >= rangeStart;
-        }
-
-        var xColliding = isInRange(x2_start, x1_start, x1_end) || isInRange(x2_end, x1_start, x1_end) || isInRange(x1_start, x2_start, x2_end) || isInRange(x1_end, x2_start, x2_end);
-        var yColliding = isInRange(y2_start, y1_start, y1_end) || isInRange(y2_end, y1_start, y1_end) || isInRange(y1_start, y2_start, y2_end) || isInRange(y1_end, y2_start, y2_end);
-
-        return xColliding && yColliding;
     }
 
     function mapDirectionToMove(direction) {
@@ -490,4 +624,8 @@ const allowedMoves = {
 
 const directions = {
     None: 'None', N: 'N', S: 'S', W: 'W', E: 'E', SE: 'SE', SW: 'SW', NE: 'NE', NW: 'NW'
+};
+
+const images = {
+    Player: 'images/player.png', Enemy: 'images/enemy.png', FireBullet: 'images/fireBullet.png', Rock: 'images/rock.png', Tree: 'images/tree.png'
 };
