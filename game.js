@@ -23,7 +23,7 @@ function rectangleBaseCollisionDetector() {
         return xColliding && yColliding;
     }
 }
-//TODO: fix bugs
+
 function colorBaseCollisionDetector() {
     var rectanglesCollisionDetector = new rectangleBaseCollisionDetector();
     var testingCanvas = document.createElement('canvas');
@@ -56,6 +56,7 @@ function colorBaseCollisionDetector() {
         var commonX = new Array();
         var commonY = new Array();
 
+        //find location of points when images rectangles are crossed
         if (isInRange(x2_start, x1_start, x1_end))
             commonX.push(x2_start);
         if (isInRange(x2_end, x1_start, x1_end))
@@ -97,7 +98,7 @@ function colorBaseCollisionDetector() {
         var secondImageAlphas = imagesColorsCache[secondObjectImage.src];
         for (var i = 0; i < commonXLineLength; ++i) {
             for (var j = 0; j < commonYLineLength; ++j) {
-                if (firstImageAlphas[i + firstImageXConflictStart][j + firstImageYConflictStart] != 0 &&
+                if (firstImageAlphas[i + firstImageXConflictStart][j + firstImageYConflictStart] &&
                     secondImageAlphas[i + secondImageXConflictStart][j + secondImageYConflictStart])
                     return true;
             }
@@ -116,11 +117,7 @@ function colorBaseCollisionDetector() {
             imagesColorsCache[image.src][i] = yValues;
             for (var j = 0; j < imageData.height; ++j) {
                 var shiftToNextLine = j * imageData.width * 4;
-                yValues[j] = imageData.data[i * 4 + shiftToNextLine + 3];//getting sum of alpha color from pixel values - not working correctly for rock
-                // yValues[j] = 0;
-                //  for(var k = 0; k<4; ++k){
-                //      yValues[j] += imageData.data[i * 4 + shiftToNextLine + k];//getting sum of all colors from pixel values
-                //  }
+                yValues[j] = imageData.data[i * 4 + shiftToNextLine + 3] > 0;//getting alpha color from pixel values and setting flag indicating if this pixel is not transparent
             }
         }
 
