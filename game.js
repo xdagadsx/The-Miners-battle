@@ -2,24 +2,36 @@
 // @ts-ignore
 gameObject = new game();
 
+var collisionDetectionUtils = (function () {
+    var that = {};
+    that.getObjectCoordinates = function (objectLocation, objectImage, checkingRestrictions) {
+        checkingRestrictions = checkingRestrictions || { offsetX: 0, offsetY: 0 };
+        checkingRestrictions.offsetX = checkingRestrictions.offsetX || 0;
+        checkingRestrictions.offsetY = checkingRestrictions.offsetY || 0;
+
+        return {
+            x_start: objectLocation.x + checkingRestrictions.offsetX,
+            x_end: objectLocation.x + objectImage.width,
+            y_start: objectLocation.y + checkingRestrictions.offsetY,
+            y_end: objectLocation.y + objectImage.height
+        }
+    }
+
+    return that;
+})();
 
 function rectangleBaseCollisionDetector() {
-    this.detectCollision = function (firstObjectLocation, firstObjectImage, secondObjectLocation, secondObjectImage) {
-        var x1_start = firstObjectLocation.x;
-        var x1_end = firstObjectLocation.x + firstObjectImage.width;
-        var y1_start = firstObjectLocation.y;
-        var y1_end = firstObjectLocation.y + firstObjectImage.height;
-        var x2_start = secondObjectLocation.x;
-        var x2_end = secondObjectLocation.x + secondObjectImage.width;
-        var y2_start = secondObjectLocation.y;
-        var y2_end = secondObjectLocation.y + secondObjectImage.height;
+
+    this.detectCollision = function (firstObjectLocation, firstObjectImage, secondObjectLocation, secondObjectImage, firstObjectCheckingRestrictions, secondObjectCheckingRestrictions) {
+        var o1 = collisionDetectionUtils.getObjectCoordinates(firstObjectLocation, firstObjectImage, firstObjectCheckingRestrictions);
+        var o2 = collisionDetectionUtils.getObjectCoordinates(secondObjectLocation, secondObjectImage, secondObjectCheckingRestrictions);
 
         function isInRange(number, rangeStart, rangeEnd) {
             return number <= rangeEnd && number >= rangeStart;
         }
 
-        var xColliding = isInRange(x2_start, x1_start, x1_end) || isInRange(x2_end, x1_start, x1_end) || isInRange(x1_start, x2_start, x2_end) || isInRange(x1_end, x2_start, x2_end);
-        var yColliding = isInRange(y2_start, y1_start, y1_end) || isInRange(y2_end, y1_start, y1_end) || isInRange(y1_start, y2_start, y2_end) || isInRange(y1_end, y2_start, y2_end);
+        var xColliding = isInRange(o2.x_start, o1.x_start, o1.x_end) || isInRange(o2.x_end, o1.x_start, o1.x_end) || isInRange(o1.x_start, o2.x_start, o2.x_end) || isInRange(o1.x_end, o2.x_start, o2.x_end);
+        var yColliding = isInRange(o2.y_start, o1.y_start, o1.y_end) || isInRange(o2.y_end, o1.y_start, o1.y_end) || isInRange(o1.y_start, o2.y_start, o2.y_end) || isInRange(o1.y_end, o2.y_start, o2.y_end);
 
         return xColliding && yColliding;
     }
@@ -31,8 +43,8 @@ function colorBaseCollisionDetector() {
     var testingCanvasContext = testingCanvas.getContext('2d');
     var imagesColorsCache = {};
 
-    this.detectCollision = function (firstObjectLocation, firstObjectImage, secondObjectLocation, secondObjectImage) {
-        if (!rectanglesCollisionDetector.detectCollision(firstObjectLocation, firstObjectImage, secondObjectLocation, secondObjectImage))
+    this.detectCollision = function (firstObjectLocation, firstObjectImage, secondObjectLocation, secondObjectImage, firstObjectCheckingRestrictions, secondObjectCheckingRestrictions) {
+        if (!rectanglesCollisionDetector.detectCollision(firstObjectLocation, firstObjectImage, secondObjectLocation, secondObjectImage, firstObjectCheckingRestrictions, secondObjectCheckingRestrictions))
             return false;
 
         if (!imagesColorsCache[firstObjectImage.src])
@@ -40,15 +52,10 @@ function colorBaseCollisionDetector() {
         if (!imagesColorsCache[secondObjectImage.src])
             addImageDataToCache(secondObjectImage);
 
+
         //use locations and image sizes to get conflicting parts of images
-        var x1_start = firstObjectLocation.x;
-        var x1_end = firstObjectLocation.x + firstObjectImage.width;
-        var y1_start = firstObjectLocation.y;
-        var y1_end = firstObjectLocation.y + firstObjectImage.height;
-        var x2_start = secondObjectLocation.x;
-        var x2_end = secondObjectLocation.x + secondObjectImage.width;
-        var y2_start = secondObjectLocation.y;
-        var y2_end = secondObjectLocation.y + secondObjectImage.height;
+        var o1 = collisionDetectionUtils.getObjectCoordinates(firstObjectLocation, firstObjectImage, firstObjectCheckingRestrictions);
+        var o2 = collisionDetectionUtils.getObjectCoordinates(secondObjectLocation, secondObjectImage, secondObjectCheckingRestrictions);
 
         function isInRange(number, rangeStart, rangeEnd) {
             return number <= rangeEnd && number >= rangeStart;
@@ -58,23 +65,23 @@ function colorBaseCollisionDetector() {
         var commonY = new Array();
 
         //find location of points when images rectangles are crossed
-        if (isInRange(x2_start, x1_start, x1_end))
-            commonX.push(x2_start);
-        if (isInRange(x2_end, x1_start, x1_end))
-            commonX.push(x2_end);
-        if (isInRange(x1_start, x2_start, x2_end))
-            commonX.push(x1_start);
-        if (isInRange(x1_end, x2_start, x2_end))
-            commonX.push(x1_end);
+        if (isInRange(o2.x_start, o1.x_start, o1.x_end))
+            commonX.push(o2.x_start);
+        if (isInRange(o2.x_end, o1.x_start, o1.x_end))
+            commonX.push(o2.x_end);
+        if (isInRange(o1.x_start, o2.x_start, o2.x_end))
+            commonX.push(o1.x_start);
+        if (isInRange(o1.x_end, o2.x_start, o2.x_end))
+            commonX.push(o1.x_end);
 
-        if (isInRange(y2_start, y1_start, y1_end))
-            commonY.push(y2_start);
-        if (isInRange(y2_end, y1_start, y1_end))
-            commonY.push(y2_end);
-        if (isInRange(y1_start, y2_start, y2_end))
-            commonY.push(y1_start);
-        if (isInRange(y1_end, y2_start, y2_end))
-            commonY.push(y1_end);
+        if (isInRange(o2.y_start, o1.y_start, o1.y_end))
+            commonY.push(o2.y_start);
+        if (isInRange(o2.y_end, o1.y_start, o1.y_end))
+            commonY.push(o2.y_end);
+        if (isInRange(o1.y_start, o2.y_start, o2.y_end))
+            commonY.push(o1.y_start);
+        if (isInRange(o1.y_end, o2.y_start, o2.y_end))
+            commonY.push(o1.y_end);
 
         //compare color data from that conflicting rectangle and check if there are at least one color pixel on same location
         commonX.sort((a, b) => (a - b)); //By default sorting using text representation, so 100 < 8 !!!
@@ -176,7 +183,8 @@ function game() {
         that.playerInfos.push({
             player: player,
             location: getLocationWithoutCollision(image, player.dimensions),
-            image: image
+            image: image,
+            dimensions: player.dimensions
         });
     }
 
@@ -184,7 +192,8 @@ function game() {
         that.bulletInfos.push({
             bullet: bullet,
             location: bulletLocation,
-            image: bullet.getImage()
+            image: bullet.getImage(),
+            dimensions: bullet.dimensions
         });
     }
     that.addBarrier = function (barrier) {
@@ -192,7 +201,8 @@ function game() {
         that.barrierInfos.push({
             barrier: barrier,
             location: getLocationWithoutCollision(image, barrier.dimensions),
-            image: image
+            image: image,
+            dimensions: barrier.dimensions
         });
     }
 
@@ -238,7 +248,7 @@ function game() {
             newLocation.z = newLocation.y + objectDimensions.height - objectDimensions.thickness;
 
             var allObjectsOnBoard = that.barrierInfos.concat(that.playerInfos).concat(that.bulletInfos);
-            var collisionDetected = detectObjectCollision({ location: newLocation, image: image }, allObjectsOnBoard);
+            var collisionDetected = detectObjectCollision({ location: newLocation, image: image, dimensions: objectDimensions }, allObjectsOnBoard);
             var objectIsOnBoard = entireObjectIsOnBoard(newLocation, image);
 
             correctLocation = !collisionDetected && objectIsOnBoard;
@@ -259,7 +269,7 @@ function game() {
 
             for (var j = 0; j < that.bulletInfos.length; ++j) {
                 var bulletInfo = that.bulletInfos[j];
-                if (colorsCollisionDetector.detectCollision(playerInfo.location, playerInfo.image, bulletInfo.location, bulletInfo.image)) {
+                if (colorsCollisionDetector.detectCollision(playerInfo.location, playerInfo.image, bulletInfo.location, bulletInfo.image, getCollisionRestriction(playerInfo), getCollisionRestriction(bulletInfo))) {
                     playerInfo.player.hp -= bulletInfo.bullet.damage;
                     bulletInfo.toRemove = true;
 
@@ -381,9 +391,13 @@ function game() {
             playerInfo.location = oldPlayerLocation;
         }
     }
+    function getCollisionRestriction(objectInfo) {
+        return { offsetY: objectInfo.dimensions.height - objectInfo.dimensions.thickness };
+    };
 
     function detectObjectCollision(objectInfo, objectInfosToCheck) {
-        return objectInfosToCheck.some(o => colorsCollisionDetector.detectCollision(objectInfo.location, objectInfo.image, o.location, o.image));
+        return objectInfosToCheck.some(o => colorsCollisionDetector
+            .detectCollision(objectInfo.location, objectInfo.image, o.location, o.image, getCollisionRestriction(objectInfo), getCollisionRestriction(o)));
     }
 
     function mapDirectionToMove(direction) {
@@ -625,9 +639,9 @@ const directions = {
 };
 
 const imageTypes = {
-    Player: { src: 'images/player.png', width: 30, height: 30, thickness: 6 },
-    Enemy: { src: 'images/enemy.png', width: 30, height: 30, thickness: 6 },
-    FireBullet: { src: 'images/fireBullet.png', thickness: 6, width: 20, height: 20 },
+    Player: { src: 'images/player.png', width: 30, height: 30, thickness: 10 },
+    Enemy: { src: 'images/enemy.png', width: 30, height: 30, thickness: 10 },
+    FireBullet: { src: 'images/fireBullet.png', width: 20, height: 20, thickness: 10 },
     Rock: { src: 'images/rock.png', width: 120, height: 83, thickness: 30 },
     Tree: { src: 'images/tree.png', width: 50, height: 50, thickness: 16 }
 };
