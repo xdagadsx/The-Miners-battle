@@ -1,4 +1,5 @@
-
+//@ts-check
+// @ts-ignore
 gameObject = new game();
 
 
@@ -80,9 +81,9 @@ function colorBaseCollisionDetector() {
         commonY.sort((a, b) => (a - b));
 
         var commonX_start = commonX[0];
-        var commonX_end = commonX[1];
+        var commonX_end = commonX[commonX.length - 1]; //when two objects have same x or y, then array contain duplicates!
         var commonY_start = commonY[0];
-        var commonY_end = commonY[1];
+        var commonY_end = commonY[commonY.length - 1];
 
         var firstImageXConflictStart = commonX_start - firstObjectLocation.x;
         var firstImageYConflictStart = commonY_start - firstObjectLocation.y;
@@ -158,14 +159,14 @@ function game() {
             that.addPlayer(new enemy());
             that.addPlayer(new enemy());
             that.addPlayer(new enemy());
-            that.addBarrier(new barrier('images/tree.png'));
-            that.addBarrier(new barrier('images/rock.png'));
-            that.addBarrier(new barrier('images/rock.png'));
-            that.addBarrier(new barrier('images/rock.png'));
-            that.addBarrier(new barrier('images/rock.png'));
+            that.addBarrier(new barrier(imageTypes.Rock));
+            that.addBarrier(new barrier(imageTypes.Rock));
+            that.addBarrier(new barrier(imageTypes.Rock));
+            that.addBarrier(new barrier(imageTypes.Rock));
+
+            window.setInterval(updateGame, 1000 / FPS);
 
             that.gameConfig.onGameInitialized(that.playerInfos.map(pi => pi.player));
-            window.setInterval(updateGame, 1000 / FPS);
         });
     }
 
@@ -174,18 +175,15 @@ function game() {
 
         that.playerInfos.push({
             player: player,
-            location: getLocationWithoutCollision(image),
+            location: getLocationWithoutCollision(image, player.dimensions),
             image: image
         });
     }
 
-    that.addBullet = function (bullet, bulletLocationX, bulletLocationY) {
+    that.addBullet = function (bullet, bulletLocation) {
         that.bulletInfos.push({
             bullet: bullet,
-            location: {
-                x: bulletLocationX,
-                y: bulletLocationY
-            },
+            location: bulletLocation,
             image: bullet.getImage()
         });
     }
@@ -193,35 +191,35 @@ function game() {
         var image = barrier.getImage();
         that.barrierInfos.push({
             barrier: barrier,
-            location: getLocationWithoutCollision(image),
+            location: getLocationWithoutCollision(image, barrier.dimensions),
             image: image
         });
     }
 
-    function loadAllNeededImages(){
-        var allImagesLoaded = new Promise((resolve, reject) =>{
+    function loadAllNeededImages() {
+        var allImagesLoaded = new Promise((resolve, reject) => {
             var imagesCount = 0;
             var loadedImagesCount = 0;
-            
-            for(var imageKey in images){
+
+            for (var imageKey in imageTypes) {
                 ++imagesCount;
             }
 
-            for(var imageKey in images){
+            for (var imageKey in imageTypes) {
                 var img = new Image();
-                img.onload = () => { 
+                img.onload = () => {
                     ++loadedImagesCount;
-                    if(imagesCount == loadedImagesCount) 
+                    if (imagesCount == loadedImagesCount)
                         resolve();
                 };
-                img.src = images[imageKey];
+                img.src = imageTypes[imageKey].src;
             }
         });
 
         return allImagesLoaded;
     }
 
-    function getLocationWithoutCollision(size) {
+    function getLocationWithoutCollision(image, objectDimensions) {
         //TODO: stop when it is not possible to find correct location!
         var correctLocation = false;
         var newLocation = undefined;
@@ -234,12 +232,14 @@ function game() {
         do {
             newLocation = {
                 x: Math.floor((Math.random() * board_width)),
-                y: Math.floor((Math.random() * board_height))
+                y: Math.floor((Math.random() * board_height)),
+                z: 0
             }
+            newLocation.z = newLocation.y + objectDimensions.height - objectDimensions.thickness;
 
             var allObjectsOnBoard = that.barrierInfos.concat(that.playerInfos).concat(that.bulletInfos);
-            var collisionDetected = detectObjectCollision({ location: newLocation, image: size }, allObjectsOnBoard);
-            var objectIsOnBoard = entireObjectIsOnBoard(newLocation, size);
+            var collisionDetected = detectObjectCollision({ location: newLocation, image: image }, allObjectsOnBoard);
+            var objectIsOnBoard = entireObjectIsOnBoard(newLocation, image);
 
             correctLocation = !collisionDetected && objectIsOnBoard;
         } while (!correctLocation)
@@ -248,11 +248,7 @@ function game() {
     }
 
     function updateGame() {
-        that.gameCanvasContext.clearRect(0, 0, that.gameCanvas.width, that.gameCanvas.height);
-
-        //draw static objects
-        that.barrierInfos.forEach(drawObject);
-
+        //players can produce bullets, so they need to move first
         that.playerInfos.forEach(movePlayer);
         that.bulletInfos.forEach(moveBullet);
 
@@ -263,7 +259,7 @@ function game() {
 
             for (var j = 0; j < that.bulletInfos.length; ++j) {
                 var bulletInfo = that.bulletInfos[j];
-                if (rectanglesCollisionDetector.detectCollision(playerInfo.location, playerInfo.image, bulletInfo.location, bulletInfo.image)) {
+                if (colorsCollisionDetector.detectCollision(playerInfo.location, playerInfo.image, bulletInfo.location, bulletInfo.image)) {
                     playerInfo.player.hp -= bulletInfo.bullet.damage;
                     bulletInfo.toRemove = true;
 
@@ -275,8 +271,20 @@ function game() {
         deleteNotNeededBullets();
         that.playerInfos = that.playerInfos.filter(pi => pi.player.hp > 0);
 
+        redrawMap();
+
         if (playersStateChanged)
             that.gameConfig.onPlayersUpdated(that.playerInfos.map(pi => pi.player));
+    }
+
+    function redrawMap() {
+        that.gameCanvasContext.clearRect(0, 0, that.gameCanvas.width, that.gameCanvas.height);
+
+        that.bulletInfos
+            .concat(that.playerInfos)
+            .concat(that.barrierInfos)
+            .sort((o1, o2) => o1.location.z - o2.location.z)
+            .forEach(objectInfo => drawObject(objectInfo));
     }
 
     function deleteNotNeededBullets() {
@@ -325,21 +333,18 @@ function game() {
                 bulletStartLocation.y -= bulletImage.height + 1;
             }
 
-            that.addBullet(bulletToBeShooted, bulletStartLocation.x, bulletStartLocation.y);
+            bulletStartLocation.z = bulletStartLocation.y + bulletToBeShooted.dimensions.height - bulletToBeShooted.dimensions.thickness;
+            that.addBullet(bulletToBeShooted, bulletStartLocation);
         }
-
-        drawObject(playerInfo);
     }
 
     function moveBullet(bulletInfo) {
         var bulletMove = bulletInfo.bullet.getNextMove();
         var move = mapDirectionToMove(bulletMove.direction);
-        var bulletMoveUnit = bulletInfo.bullet.speed / FPS;
+        var bulletMoveUnit = Math.round(bulletInfo.bullet.speed / FPS);
 
         bulletInfo.location.x += move.moveX * bulletMoveUnit;
         bulletInfo.location.y += move.moveY * bulletMoveUnit;
-
-        drawObject(bulletInfo);
     }
 
     function updatePlayerLocation(playerInfo, playerDirection) {
@@ -347,7 +352,8 @@ function game() {
             return;
 
         var move = mapDirectionToMove(playerDirection);
-        var playerMoveUnit = playerInfo.player.speed / FPS;
+        var player = playerInfo.player;
+        var playerMoveUnit = player.speed / FPS;
 
         if (playerInfo.location.x <= playerMoveUnit && move.moveX < 0) {
             move.moveX = 0;
@@ -366,6 +372,8 @@ function game() {
             x: playerInfo.location.x + Math.round(move.moveX * playerMoveUnit),
             y: playerInfo.location.y + Math.round(move.moveY * playerMoveUnit)
         }
+        newPlayerLocation.z = newPlayerLocation.y + player.dimensions.height - player.dimensions.thickness;
+
         var oldPlayerLocation = playerInfo.location;
         playerInfo.location = newPlayerLocation;
 
@@ -375,25 +383,7 @@ function game() {
     }
 
     function detectObjectCollision(objectInfo, objectInfosToCheck) {
-        //TODO: Improve performance, after first conflict detected stop future processing
-        var collisionDetected = false;
-
-        that.barrierInfos.forEach(barrierInfo => {
-            if (colorsCollisionDetector.detectCollision(objectInfo.location, objectInfo.image, barrierInfo.location, barrierInfo.image)) {
-                collisionDetected = true;
-            }
-        });
-
-        that.playerInfos.forEach(pi => {
-            if (pi === objectInfo)
-                return;
-
-            if (rectanglesCollisionDetector.detectCollision(objectInfo.location, objectInfo.image, pi.location, pi.image)) {
-                collisionDetected = true;
-            }
-        });
-
-        return collisionDetected;
+        return objectInfosToCheck.some(o => colorsCollisionDetector.detectCollision(objectInfo.location, objectInfo.image, o.location, o.image));
     }
 
     function mapDirectionToMove(direction) {
@@ -432,11 +422,11 @@ function game() {
 
         return move;
     }
-
-    return that;
 }
 
 function player() {
+    const imageType = imageTypes.Player;
+
     var pressedKeys = { ArrowDown: false, ArrowLeft: false, ArrowRight: false, ArrowUp: false, Space: false };
     var faceDirection = directions.S;
 
@@ -475,10 +465,11 @@ function player() {
         }
     });
 
-    that = this;
+    var that = this;
     that.identifier = 'player';
     that.hp = 400;
     that.speed = 40;
+    that.dimensions = getImageTypeDimensions(imageType);
     that.getNextMove = function () {
         if (pressedKeys.Space) {
             pressedKeys.Space = false;
@@ -519,7 +510,7 @@ function player() {
 
     that.getImage = function () {
         var image = new Image();
-        image.src = 'images/player.png'
+        image.src = imageType.src;
 
         return image;
     }
@@ -527,14 +518,16 @@ function player() {
 
 var enemyId = 1;
 function enemy() {
+    const imageType = imageTypes.Enemy;
     const NUMBER_OF_REPLAYS = 8;
     var numberOfMoveReplays = NUMBER_OF_REPLAYS;
     var currentMoveDirection = directions.None;
 
-    that = this;
+    var that = this;
     that.identifier = 'enemy_' + enemyId++;
     that.speed = 40;
     that.hp = 100;
+    that.dimensions = getImageTypeDimensions(imageType);
     that.getNextMove = function () {
         if (--numberOfMoveReplays > 0) {
             return { type: allowedMoves.Move, direction: currentMoveDirection };
@@ -582,37 +575,45 @@ function enemy() {
 
     that.getImage = function () {
         var image = new Image();
-        image.src = 'images/enemy.png'
+        image.src = imageType.src;
 
         return image;
     }
 }
+
 function bullet(bulletDirection) {
-    that = this;
+    const imageType = imageTypes.FireBullet;
+    var that = this;
     that.description = 'bullet';
     that.speed = 60;
     that.damage = 40;
+    that.dimensions = getImageTypeDimensions(imageType);
     that.getNextMove = function () {
         return { type: allowedMoves.Move, direction: bulletDirection };
     }
 
     var image = new Image();
-    image.src = 'images/fireBullet.png'
+    image.src = imageType.src;
     that.getImage = function () {
         return image;
     }
 }
 
-function barrier(imgSrc) {
-    that = this;
+function barrier(imageType) {
+    var that = this;
     that.description = 'barrier';
+    that.dimensions = getImageTypeDimensions(imageType);
 
     that.getImage = function () {
         var image = new Image();
-        image.src = imgSrc;
+        image.src = imageType.src;
 
         return image;
     }
+}
+
+function getImageTypeDimensions(imageType) {
+    return { width: imageType.width, height: imageType.height, thickness: imageType.thickness };
 }
 
 const allowedMoves = {
@@ -623,6 +624,10 @@ const directions = {
     None: 'None', N: 'N', S: 'S', W: 'W', E: 'E', SE: 'SE', SW: 'SW', NE: 'NE', NW: 'NW'
 };
 
-const images = {
-    Player: 'images/player.png', Enemy: 'images/enemy.png', FireBullet: 'images/fireBullet.png', Rock: 'images/rock.png', Tree: 'images/tree.png'
+const imageTypes = {
+    Player: { src: 'images/player.png', width: 30, height: 30, thickness: 6 },
+    Enemy: { src: 'images/enemy.png', width: 30, height: 30, thickness: 6 },
+    FireBullet: { src: 'images/fireBullet.png', thickness: 6, width: 20, height: 20 },
+    Rock: { src: 'images/rock.png', width: 120, height: 83, thickness: 30 },
+    Tree: { src: 'images/tree.png', width: 50, height: 50, thickness: 16 }
 };
