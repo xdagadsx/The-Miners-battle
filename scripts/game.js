@@ -13,32 +13,49 @@ function game() {
     var allowedMoves = window.GAME.allowedMoves;
     var directions = window.GAME.directions;
 
-    var that = this;
-    that.playerInfos = new Array();
-    that.bulletInfos = new Array();
-    that.barrierInfos = new Array();
+    var userPlayerInfo = undefined;
+    var playerInfos = new Array();
+    var bulletInfos = new Array();
+    var barrierInfos = new Array();
+
+    var gameConfig = undefined;
+    var gameCanvas = undefined;
+    var gameCanvasContext = undefined;
 
     var board_height = undefined;
     var board_width = undefined;
-
     const FPS = 30;
 
     var isInitialized = false;
 
-    that.initialize = function (gameConfig) {
+    var that = this;
+    that.initialize = function (config) {
         if (isInitialized) return;
 
         isInitialized = true;
 
         loadAllNeededImages().then(() => {
-            that.gameConfig = gameConfig;
-            that.gameCanvas = gameConfig.gameCanvas;
-            board_height = that.gameCanvas.height;
-            board_width = that.gameCanvas.width;
+            gameConfig = config;
+            gameCanvas = config.gameCanvas;
+            board_height = gameCanvas.height;
+            board_width = gameCanvas.width;
 
-            that.gameCanvasContext = that.gameCanvas.getContext("2d");
+            gameCanvasContext = gameCanvas.getContext("2d");
 
-            that.addPlayer(new player());
+            var userPlayer = new player();
+            userPlayerInfo = {
+                player: userPlayer,
+                location: {
+                    x: Math.floor(board_width / 2),
+                    y: Math.floor(board_height / 2),
+                    z: Math.floor(board_height / 2) + userPlayer.dimensions.height - userPlayer.dimensions.thickness
+                },
+                image: userPlayer.getImage(),
+                dimensions: userPlayer.dimensions,
+                gameObject: userPlayer
+            };
+            playerInfos.push(userPlayerInfo);
+
             that.addPlayer(new enemy());
             that.addPlayer(new enemy());
             that.addPlayer(new enemy());
@@ -49,14 +66,14 @@ function game() {
 
             window.setInterval(updateGame, 1000 / FPS);
 
-            that.gameConfig.onGameInitialized(that.playerInfos.map(pi => pi.player));
+            gameConfig.onGameInitialized(playerInfos.map(pi => pi.player));
         });
     }
 
     that.addPlayer = function (player) {
         var image = player.getImage();
 
-        that.playerInfos.push({
+        playerInfos.push({
             player: player,
             location: getLocationWithoutCollision(image, player.dimensions),
             image: image,
@@ -65,8 +82,8 @@ function game() {
         });
     }
 
-    that.addBullet = function (bullet, bulletLocation) {
-        that.bulletInfos.push({
+    function addBullet(bullet, bulletLocation) {
+        bulletInfos.push({
             bullet: bullet,
             location: bulletLocation,
             image: bullet.getImage(),
@@ -76,7 +93,7 @@ function game() {
     }
     that.addBarrier = function (barrier) {
         var image = barrier.getImage();
-        that.barrierInfos.push({
+        barrierInfos.push({
             barrier: barrier,
             location: getLocationWithoutCollision(image, barrier.dimensions),
             image: image,
@@ -126,7 +143,7 @@ function game() {
             }
             newLocation.z = newLocation.y + objectDimensions.height - objectDimensions.thickness;
 
-            var allObjectsOnBoard = that.barrierInfos.concat(that.playerInfos).concat(that.bulletInfos);
+            var allObjectsOnBoard = barrierInfos.concat(playerInfos, bulletInfos);
             var collisionDetected = detectObjectCollision({ location: newLocation, image: image, dimensions: objectDimensions }, allObjectsOnBoard);
             var objectIsOnBoard = entireObjectIsOnBoard(newLocation, image);
 
@@ -137,28 +154,29 @@ function game() {
     }
 
     function updateGame() {
-        //players can produce bullets, so they need to move first
-        that.bulletInfos.forEach(moveBullet);
-        that.playerInfos.forEach(movePlayer);
+        movePlayer();
+        bulletInfos.forEach(moveBullet);
+        playerInfos.filter(pi => pi != userPlayerInfo).forEach(moveBot);
 
         //check player collisions with bullets and update health
-        var playersStateChanged = checkCollisionsWithBullets(that.playerInfos.concat(that.barrierInfos));
+        var playersStateChanged = checkCollisionsWithBullets(playerInfos.concat(barrierInfos));
 
         deleteNotNeededBullets();
-        that.playerInfos = that.playerInfos.filter(pi => pi.player.hp > 0);
+        //deleteAllNotReachableObjects();
+        playerInfos = playerInfos.filter(pi => pi.player.hp > 0);
 
-        redrawMap();
+        redrawVisibleObjectsOnMap();
 
         if (playersStateChanged)
-            that.gameConfig.onPlayersUpdated(that.playerInfos.map(pi => pi.player));
+            gameConfig.onPlayersUpdated(playerInfos.map(pi => pi.player));
     }
 
-    function checkCollisionsWithBullets(objectInfos){
+    function checkCollisionsWithBullets(objectInfos) {
         var playersStateChanged = false;
 
         for (var objectInfo of objectInfos) {
-            for (var j = 0; j < that.bulletInfos.length; ++j) {
-                var bulletInfo = that.bulletInfos[j];
+            for (var j = 0; j < bulletInfos.length; ++j) {
+                var bulletInfo = bulletInfos[j];
                 if (collisionDetector.detectCollision(objectInfo.location, objectInfo.image, bulletInfo.location, bulletInfo.image, getCollisionRestriction(objectInfo), getCollisionRestriction(bulletInfo))) {
                     objectInfo.gameObject.hp -= bulletInfo.bullet.damage;
                     bulletInfo.toRemove = true;
@@ -171,12 +189,12 @@ function game() {
         return playersStateChanged;
     }
 
-    function redrawMap() {
-        that.gameCanvasContext.clearRect(0, 0, that.gameCanvas.width, that.gameCanvas.height);
+    function redrawVisibleObjectsOnMap() {
+        gameCanvasContext.clearRect(0, 0, board_width, board_height);
 
-        that.bulletInfos
-            .concat(that.playerInfos)
-            .concat(that.barrierInfos)
+        bulletInfos
+            .concat(playerInfos, barrierInfos)
+            .filter(objectInfo => !isOutsideOfVisibleMap(objectInfo.location, objectInfo.dimensions))
             .sort((o1, o2) => o1.location.z - o2.location.z)
             .forEach(objectInfo => drawObject(objectInfo));
     }
@@ -184,52 +202,73 @@ function game() {
     function deleteNotNeededBullets() {
         var bulletToRemoveIndexes = new Array();
 
-        for (var i = 0; i < that.bulletInfos.length; i++) {
-            var bulletInfo = that.bulletInfos[i];
+        for (var i = 0; i < bulletInfos.length; i++) {
+            var bulletInfo = bulletInfos[i];
 
-            if (bulletInfo.toRemove || bulletInfo.location.x >= board_width || bulletInfo.location.y >= board_height || bulletInfo.location.x <= 0 || bulletInfo.location.y <= 0) {
+            if (bulletInfo.toRemove || isOutsideOfReachableMap(bulletInfo.location)) {
                 bulletToRemoveIndexes.push(i);
             }
         }
 
-        bulletToRemoveIndexes.forEach(index => that.bulletInfos.splice(index, 1));
+        bulletToRemoveIndexes.forEach(index => bulletInfos.splice(index, 1));
+    }
+
+    const maximumDistanceFromVisibleMap = 200;
+    const maxX = board_width + maximumDistanceFromVisibleMap;
+    const maxY = board_height + maximumDistanceFromVisibleMap;
+    
+    function isOutsideOfReachableMap(location){
+        return location.x >= maxX || location.y >= maxY || location.x <= -maximumDistanceFromVisibleMap || location.y <= -maximumDistanceFromVisibleMap;
+    }
+
+    function isOutsideOfVisibleMap(location, dimensions){
+        return location.x >= board_width || location.y >= board_height || location.x + dimensions.width <= 0 || location.y + dimensions.height <= 0;
     }
 
     function drawObject(objectInfo) {
-        that.gameCanvasContext.drawImage(objectInfo.image, objectInfo.location.x, objectInfo.location.y);
+        gameCanvasContext.drawImage(objectInfo.image, objectInfo.location.x, objectInfo.location.y);
     }
 
-    function movePlayer(playerInfo) {
+    function movePlayer() {
+        var playerMove = userPlayerInfo.player.getNextMove();
+
+        if (playerMove.type === allowedMoves.Move && playerMove.direction !== directions.None) {
+            //get location delta from player move and subtract it from each object location
+            var move = mapDirectionToMove(playerMove.direction);
+
+            var playerMoveUnit = Math.round(userPlayerInfo.player.speed / FPS);
+            var locationDelta = { x: move.moveX * playerMoveUnit, y: move.moveY * playerMoveUnit, z: move.moveY * playerMoveUnit };
+
+            var currentPlayerLocation = userPlayerInfo.location;
+            //update player location only for collision detection
+            userPlayerInfo.location = {
+                x: currentPlayerLocation.x + locationDelta.x,
+                y: currentPlayerLocation.y + locationDelta.y,
+                z: currentPlayerLocation.z + locationDelta.z
+            };
+
+            if (!detectObjectCollision(userPlayerInfo, barrierInfos.concat(playerInfos.filter(pi => pi !== userPlayerInfo)))) {
+                playerInfos.filter(pi => pi != userPlayerInfo).concat(barrierInfos, bulletInfos).forEach(objectInfo => {
+                    objectInfo.location.x -= locationDelta.x;
+                    objectInfo.location.y -= locationDelta.y;
+                    objectInfo.location.z -= locationDelta.z;
+                });
+            }
+
+            //reset player location to previous value
+            userPlayerInfo.location = currentPlayerLocation;
+        }
+        else if (playerMove.type === allowedMoves.Shoot)
+            shootBullet(userPlayerInfo, playerMove.direction);
+    }
+
+    function moveBot(playerInfo) {
         var playerMove = playerInfo.player.getNextMove();
 
         if (playerMove.type === allowedMoves.Move)
             updatePlayerLocation(playerInfo, playerMove.direction);
-        else if (playerMove.type === allowedMoves.Shoot) {
-            var bulletToBeShooted = new bullet(playerMove.direction);
-            var bulletImage = bulletToBeShooted.getImage();
-
-            var bulletMove = mapDirectionToMove(playerMove.direction);
-
-            var bulletStartLocation = { x: playerInfo.location.x, y: playerInfo.location.y };
-            if (bulletMove.moveX === 1) {
-                bulletStartLocation.x += playerInfo.image.width + 1;
-            } else if (bulletMove.moveX === 0) {
-                bulletStartLocation.x += (playerInfo.image.width - bulletImage.width) / 2;
-            } else if (bulletMove.moveX === -1) {
-                bulletStartLocation.x -= bulletImage.width + 1;
-            }
-
-            if (bulletMove.moveY === 1) {
-                bulletStartLocation.y += playerInfo.image.height + 1;
-            } else if (bulletMove.moveY === 0) {
-                bulletStartLocation.y += (playerInfo.image.height - bulletImage.height) / 2;
-            } else if (bulletMove.moveY === -1) {
-                bulletStartLocation.y -= bulletImage.height + 1;
-            }
-
-            bulletStartLocation.z = bulletStartLocation.y + bulletToBeShooted.dimensions.height - bulletToBeShooted.dimensions.thickness;
-            that.addBullet(bulletToBeShooted, bulletStartLocation);
-        }
+        else if (playerMove.type === allowedMoves.Shoot)
+            shootBullet(playerInfo, playerMove.direction);
     }
 
     function moveBullet(bulletInfo) {
@@ -241,37 +280,50 @@ function game() {
         bulletInfo.location.y += move.moveY * bulletMoveUnit;
     }
 
+    function shootBullet(playerInfo, bulletDirection) {
+        var bulletToBeShooted = new bullet(bulletDirection);
+        var bulletImage = bulletToBeShooted.getImage();
+
+        var bulletMove = mapDirectionToMove(bulletDirection);
+
+        var bulletStartLocation = { x: playerInfo.location.x, y: playerInfo.location.y };
+        if (bulletMove.moveX === 1) {
+            bulletStartLocation.x += playerInfo.image.width + 1;
+        } else if (bulletMove.moveX === 0) {
+            bulletStartLocation.x += (playerInfo.image.width - bulletImage.width) / 2;
+        } else if (bulletMove.moveX === -1) {
+            bulletStartLocation.x -= bulletImage.width + 1;
+        }
+
+        if (bulletMove.moveY === 1) {
+            bulletStartLocation.y += playerInfo.image.height + 1;
+        } else if (bulletMove.moveY === 0) {
+            bulletStartLocation.y += (playerInfo.image.height - bulletImage.height) / 2;
+        } else if (bulletMove.moveY === -1) {
+            bulletStartLocation.y -= bulletImage.height + 1;
+        }
+
+        bulletStartLocation.z = bulletStartLocation.y + bulletToBeShooted.dimensions.height - bulletToBeShooted.dimensions.thickness;
+        addBullet(bulletToBeShooted, bulletStartLocation);
+    }
     function updatePlayerLocation(playerInfo, playerDirection) {
         if (playerDirection == directions.None)
             return;
 
         var move = mapDirectionToMove(playerDirection);
         var player = playerInfo.player;
-        var playerMoveUnit = player.speed / FPS;
-
-        if (playerInfo.location.x <= playerMoveUnit && move.moveX < 0) {
-            move.moveX = 0;
-        }
-        if (playerInfo.location.x >= board_width - playerMoveUnit - playerInfo.image.width && move.moveX > 0) {
-            move.moveX = 0;
-        }
-        if (playerInfo.location.y <= playerMoveUnit && move.moveY < 0) {
-            move.moveY = 0;
-        }
-        if (playerInfo.location.y >= board_height - playerMoveUnit - playerInfo.image.height && move.moveY > 0) {
-            move.moveY = 0;
-        }
+        var playerMoveUnit = Math.round(player.speed / FPS);
 
         var newPlayerLocation = {
-            x: playerInfo.location.x + Math.round(move.moveX * playerMoveUnit),
-            y: playerInfo.location.y + Math.round(move.moveY * playerMoveUnit)
+            x: playerInfo.location.x + move.moveX * playerMoveUnit,
+            y: playerInfo.location.y + move.moveY * playerMoveUnit
         }
-        newPlayerLocation.z = newPlayerLocation.y + player.dimensions.height - player.dimensions.thickness;
+        newPlayerLocation.z = playerInfo.location.z + move.moveY * playerMoveUnit;
 
         var oldPlayerLocation = playerInfo.location;
         playerInfo.location = newPlayerLocation;
 
-        if (detectObjectCollision(playerInfo, that.barrierInfos.concat(that.playerInfos.filter(pi => pi !== playerInfo)))) {
+        if (detectObjectCollision(playerInfo, barrierInfos.concat(playerInfos.filter(pi => pi !== playerInfo)))) {
             playerInfo.location = oldPlayerLocation;
         }
     }
