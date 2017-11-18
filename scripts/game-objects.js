@@ -54,7 +54,7 @@
         var that = this;
         that.identifier = 'player';
         that.hp = 400;
-        that.speed = 40;
+        that.speed = 80;
         that.dimensions = getImageTypeDimensions(imageType);
         that.getNextMove = function () {
             if (pressedKeys.Space) {
@@ -111,7 +111,7 @@
 
         var that = this;
         that.identifier = 'enemy_' + enemyId++;
-        that.speed = 40;
+        that.speed = 80;
         that.hp = 100;
         that.dimensions = getImageTypeDimensions(imageType);
         that.getNextMove = function () {
@@ -171,7 +171,7 @@
         const imageType = imageTypes.FireBullet;
         var that = this;
         that.description = 'bullet';
-        that.speed = 60;
+        that.speed = 120;
         that.damage = 40;
         that.dimensions = getImageTypeDimensions(imageType);
         that.getNextMove = function () {

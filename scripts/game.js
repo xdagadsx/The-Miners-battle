@@ -238,7 +238,10 @@ function game() {
 
         deleteNotNeededBullets();
         //deleteAllNotReachableObjects();
-        playerInfos = playerInfos.filter(pi => pi.player.hp > 0);
+        barrierInfos.forEach(bi => bi.toRemove = isOutsideOfReachableMap(bi.location));
+        playerInfos.forEach(pi => pi.toRemove = isOutsideOfReachableMap(pi.location));
+        playerInfos = playerInfos.filter(pi => pi.player.hp > 0 && !pi.toRemove);
+        barrierInfos = barrierInfos.filter(bi => bi.barrier.hp > 0 && !bi.toRemove);
 
         redrawVisibleObjectsOnMap();
 
