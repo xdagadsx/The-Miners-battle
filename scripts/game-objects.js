@@ -1,4 +1,5 @@
 (function (window) {
+    "use strict";
     window.GAME = window.GAME || {};
     var imageTypes = window.GAME.imageTypes;
     var directions = window.GAME.directions;
@@ -180,10 +181,11 @@
         }
     }
 
-    function barrier(imageType) {
+    function barrier(imageType, durability) {
         var that = this;
         that.description = 'barrier';
         that.dimensions = getImageTypeDimensions(imageType);
+        that.hp = durability || Infinity;
 
         that.getImage = function () {
             var image = new Image();

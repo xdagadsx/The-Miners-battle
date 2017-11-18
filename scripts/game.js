@@ -1,6 +1,8 @@
 gameObject = new game();
 
 function game() {
+    "use strict";
+
     //import all dependencies from other files
     var collisionDetector = window.GAME.collisionDetector;
     var player = window.GAME.player;
@@ -58,7 +60,8 @@ function game() {
             player: player,
             location: getLocationWithoutCollision(image, player.dimensions),
             image: image,
-            dimensions: player.dimensions
+            dimensions: player.dimensions,
+            gameObject: player
         });
     }
 
@@ -67,7 +70,8 @@ function game() {
             bullet: bullet,
             location: bulletLocation,
             image: bullet.getImage(),
-            dimensions: bullet.dimensions
+            dimensions: bullet.dimensions,
+            gameObject: bullet
         });
     }
     that.addBarrier = function (barrier) {
@@ -76,7 +80,8 @@ function game() {
             barrier: barrier,
             location: getLocationWithoutCollision(image, barrier.dimensions),
             image: image,
-            dimensions: barrier.dimensions
+            dimensions: barrier.dimensions,
+            gameObject: barrier
         });
     }
 
@@ -133,24 +138,11 @@ function game() {
 
     function updateGame() {
         //players can produce bullets, so they need to move first
-        that.playerInfos.forEach(movePlayer);
         that.bulletInfos.forEach(moveBullet);
+        that.playerInfos.forEach(movePlayer);
 
-        var playersStateChanged = false;
         //check player collisions with bullets and update health
-        for (var i = 0; i < that.playerInfos.length; ++i) {
-            var playerInfo = that.playerInfos[i];
-
-            for (var j = 0; j < that.bulletInfos.length; ++j) {
-                var bulletInfo = that.bulletInfos[j];
-                if (collisionDetector.detectCollision(playerInfo.location, playerInfo.image, bulletInfo.location, bulletInfo.image, getCollisionRestriction(playerInfo), getCollisionRestriction(bulletInfo))) {
-                    playerInfo.player.hp -= bulletInfo.bullet.damage;
-                    bulletInfo.toRemove = true;
-
-                    playersStateChanged = true;
-                }
-            }
-        }
+        var playersStateChanged = checkCollisionsWithBullets(that.playerInfos.concat(that.barrierInfos));
 
         deleteNotNeededBullets();
         that.playerInfos = that.playerInfos.filter(pi => pi.player.hp > 0);
@@ -159,6 +151,24 @@ function game() {
 
         if (playersStateChanged)
             that.gameConfig.onPlayersUpdated(that.playerInfos.map(pi => pi.player));
+    }
+
+    function checkCollisionsWithBullets(objectInfos){
+        var playersStateChanged = false;
+
+        for (var objectInfo of objectInfos) {
+            for (var j = 0; j < that.bulletInfos.length; ++j) {
+                var bulletInfo = that.bulletInfos[j];
+                if (collisionDetector.detectCollision(objectInfo.location, objectInfo.image, bulletInfo.location, bulletInfo.image, getCollisionRestriction(objectInfo), getCollisionRestriction(bulletInfo))) {
+                    objectInfo.gameObject.hp -= bulletInfo.bullet.damage;
+                    bulletInfo.toRemove = true;
+
+                    playersStateChanged = true;
+                }
+            }
+        }
+
+        return playersStateChanged;
     }
 
     function redrawMap() {

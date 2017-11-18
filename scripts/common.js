@@ -1,4 +1,5 @@
 (function (window) {
+    "use strict";
     const allowedMoves = {
         Move: 'Move', Shoot: 'Shoot'
     }

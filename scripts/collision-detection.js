@@ -1,5 +1,6 @@
 //@ts-check
 (function (window) {
+    "use strict";
     var collisionDetectionUtils = (function () {
         var that = {};
         that.getObjectCoordinates = function (objectLocation, objectImage, checkingRestrictions) {
