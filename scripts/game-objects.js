@@ -13,6 +13,10 @@
         var faceDirection = directions.S;
 
         addEventListener('keydown', (event) => {
+            if ([32, 37, 38, 39, 40].indexOf(event.keyCode) > -1) {
+                event.preventDefault();
+            }
+
             switch (event.code) {
                 case 'ArrowUp':
                     pressedKeys.ArrowUp = true;
@@ -29,7 +33,7 @@
                 case 'Space':
                     pressedKeys.Space = true;
             }
-        });
+        }, false);
         addEventListener('keyup', (event) => {
             switch (event.code) {
                 case 'ArrowUp':
@@ -45,7 +49,7 @@
                     pressedKeys.ArrowLeft = false;
                     break;
             }
-        });
+        }, false);
 
         var that = this;
         that.identifier = 'player';
