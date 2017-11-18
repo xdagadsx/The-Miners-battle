@@ -14,6 +14,7 @@ function game() {
     var directions = window.GAME.directions;
 
     var userPlayerInfo = undefined;
+    var backgroundInfo = undefined;
     var playerInfos = new Array();
     var bulletInfos = new Array();
     var barrierInfos = new Array();
@@ -41,6 +42,7 @@ function game() {
             board_width = gameCanvas.width;
 
             gameCanvasContext = gameCanvas.getContext("2d");
+            initializeBackground();
 
             var userPlayer = new player();
             userPlayerInfo = {
@@ -125,6 +127,35 @@ function game() {
         return allImagesLoaded;
     }
 
+    function initializeBackground() {
+        if (!backgroundInfo) {
+            var xShift = -Math.round((imageTypes.Background.width - board_width) / 2);
+            var yShift = -Math.round((imageTypes.Background.height - board_height) / 2);
+            var doubleXShift = xShift * 2;
+            var doubleYShift = yShift * 2;
+
+            backgroundInfo = {};
+            backgroundInfo.resetLocation = () => {
+                //visible game map should be on the middle of background
+                backgroundInfo.location = {
+                    x: xShift,
+                    y: yShift,
+                    z: 0
+                };
+            };
+
+            backgroundInfo.mapIsOutside = () => {
+                return backgroundInfo.location.x >= 0 || backgroundInfo.location.y >= 0 
+                || backgroundInfo.location.x <= doubleXShift || backgroundInfo.location.y <= doubleYShift;
+            };
+
+            backgroundInfo.image = new Image();
+            backgroundInfo.image.src = imageTypes.Background.src;
+        }
+
+        backgroundInfo.resetLocation();
+    }
+
     function getLocationWithoutCollision(image, objectDimensions) {
         //TODO: stop when it is not possible to find correct location!
         var correctLocation = false;
@@ -191,6 +222,7 @@ function game() {
 
     function redrawVisibleObjectsOnMap() {
         gameCanvasContext.clearRect(0, 0, board_width, board_height);
+        gameCanvasContext.drawImage(backgroundInfo.image, -backgroundInfo.location.x, -backgroundInfo.location.y, board_width, board_height, 0, 0, board_width, board_height);
 
         bulletInfos
             .concat(playerInfos, barrierInfos)
@@ -216,12 +248,12 @@ function game() {
     const maximumDistanceFromVisibleMap = 200;
     const maxX = board_width + maximumDistanceFromVisibleMap;
     const maxY = board_height + maximumDistanceFromVisibleMap;
-    
-    function isOutsideOfReachableMap(location){
+
+    function isOutsideOfReachableMap(location) {
         return location.x >= maxX || location.y >= maxY || location.x <= -maximumDistanceFromVisibleMap || location.y <= -maximumDistanceFromVisibleMap;
     }
 
-    function isOutsideOfVisibleMap(location, dimensions){
+    function isOutsideOfVisibleMap(location, dimensions) {
         return location.x >= board_width || location.y >= board_height || location.x + dimensions.width <= 0 || location.y + dimensions.height <= 0;
     }
 
@@ -253,6 +285,12 @@ function game() {
                     objectInfo.location.y -= locationDelta.y;
                     objectInfo.location.z -= locationDelta.z;
                 });
+
+                backgroundInfo.location.x -= locationDelta.x;
+                backgroundInfo.location.y -= locationDelta.y;
+
+                if (backgroundInfo.mapIsOutside())
+                    backgroundInfo.resetLocation();
             }
 
             //reset player location to previous value
