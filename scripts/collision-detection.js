@@ -1,33 +1,29 @@
 //@ts-check
 (function (window) {
     "use strict";
-    var collisionDetectionUtils = (function () {
-        var that = {};
-        that.getObjectCoordinates = function (objectLocation, objectImage, checkingRestrictions) {
-            checkingRestrictions = checkingRestrictions || { offsetX: 0, offsetY: 0 };
-            checkingRestrictions.offsetX = checkingRestrictions.offsetX || 0;
-            checkingRestrictions.offsetY = checkingRestrictions.offsetY || 0;
 
-            return {
-                x_start: objectLocation.x + checkingRestrictions.offsetX,
-                x_end: objectLocation.x + objectImage.width,
-                y_start: objectLocation.y + checkingRestrictions.offsetY,
-                y_end: objectLocation.y + objectImage.height
-            }
+    function getObjectCoordinates(objectLocation, objectImage, checkingRestrictions) {
+        checkingRestrictions = checkingRestrictions || { offsetX: 0, offsetY: 0 };
+        checkingRestrictions.offsetX = checkingRestrictions.offsetX || 0;
+        checkingRestrictions.offsetY = checkingRestrictions.offsetY || 0;
+
+        return {
+            x_start: objectLocation.x + checkingRestrictions.offsetX,
+            x_end: objectLocation.x + objectImage.width,
+            y_start: objectLocation.y + checkingRestrictions.offsetY,
+            y_end: objectLocation.y + objectImage.height
         }
+    }
 
-        return that;
-    })();
+    function isInRange(number, rangeStart, rangeEnd) {
+        return number <= rangeEnd && number >= rangeStart;
+    }
 
     function rectangleBaseCollisionDetector() {
 
         this.detectCollision = function (firstObjectLocation, firstObjectImage, secondObjectLocation, secondObjectImage, firstObjectCheckingRestrictions, secondObjectCheckingRestrictions) {
-            var o1 = collisionDetectionUtils.getObjectCoordinates(firstObjectLocation, firstObjectImage, firstObjectCheckingRestrictions);
-            var o2 = collisionDetectionUtils.getObjectCoordinates(secondObjectLocation, secondObjectImage, secondObjectCheckingRestrictions);
-
-            function isInRange(number, rangeStart, rangeEnd) {
-                return number <= rangeEnd && number >= rangeStart;
-            }
+            var o1 = getObjectCoordinates(firstObjectLocation, firstObjectImage, firstObjectCheckingRestrictions);
+            var o2 = getObjectCoordinates(secondObjectLocation, secondObjectImage, secondObjectCheckingRestrictions);
 
             var xColliding = isInRange(o2.x_start, o1.x_start, o1.x_end) || isInRange(o2.x_end, o1.x_start, o1.x_end) || isInRange(o1.x_start, o2.x_start, o2.x_end) || isInRange(o1.x_end, o2.x_start, o2.x_end);
             var yColliding = isInRange(o2.y_start, o1.y_start, o1.y_end) || isInRange(o2.y_end, o1.y_start, o1.y_end) || isInRange(o1.y_start, o2.y_start, o2.y_end) || isInRange(o1.y_end, o2.y_start, o2.y_end);
@@ -53,12 +49,8 @@
 
 
             //use locations and image sizes to get conflicting parts of images
-            var o1 = collisionDetectionUtils.getObjectCoordinates(firstObjectLocation, firstObjectImage, firstObjectCheckingRestrictions);
-            var o2 = collisionDetectionUtils.getObjectCoordinates(secondObjectLocation, secondObjectImage, secondObjectCheckingRestrictions);
-
-            function isInRange(number, rangeStart, rangeEnd) {
-                return number <= rangeEnd && number >= rangeStart;
-            }
+            var o1 = getObjectCoordinates(firstObjectLocation, firstObjectImage, firstObjectCheckingRestrictions);
+            var o2 = getObjectCoordinates(secondObjectLocation, secondObjectImage, secondObjectCheckingRestrictions);
 
             var commonX = new Array();
             var commonY = new Array();
