@@ -27,9 +27,13 @@ function game() {
     var board_width = undefined;
     const FPS = 30;
 
+    var maxMapX = undefined;
+    var maxMapY = undefined;
+
     var isInitialized = false;
 
     var that = this;
+    that.addPlayer = addPlayer;
     that.initialize = function (config) {
         if (isInitialized) return;
 
@@ -40,6 +44,9 @@ function game() {
             gameCanvas = config.gameCanvas;
             board_height = gameCanvas.height;
             board_width = gameCanvas.width;
+
+            maxMapX = board_width + maximumDistanceFromVisibleMap;
+            maxMapY = board_height + maximumDistanceFromVisibleMap;
 
             gameCanvasContext = gameCanvas.getContext("2d");
             initializeBackground();
@@ -58,13 +65,7 @@ function game() {
             };
             playerInfos.push(userPlayerInfo);
 
-            that.addPlayer(new enemy());
-            that.addPlayer(new enemy());
-            that.addPlayer(new enemy());
-            that.addBarrier(new barrier(imageTypes.Rock));
-            that.addBarrier(new barrier(imageTypes.Rock));
-            that.addBarrier(new barrier(imageTypes.Rock));
-            that.addBarrier(new barrier(imageTypes.Rock));
+            generateObjects();
 
             window.setInterval(updateGame, 1000 / FPS);
 
@@ -72,12 +73,47 @@ function game() {
         });
     }
 
-    that.addPlayer = function (player) {
+    var locationDeltaSinceLastGeneration = { x: 0, y: 0 };
+    function objectsLocationUpdated(locationDelta) {
+        locationDeltaSinceLastGeneration.x += locationDelta.x;
+        locationDeltaSinceLastGeneration.y += locationDelta.y;
+
+        const generateBarrierThreshold = 100;
+        const generateEnemyThreshold = 50;
+        //generate some enemies
+
+        // if(Math.abs(locationDeltaSinceLastGeneration.x) >= generateEnemyThreshold || Math.abs(locationDeltaSinceLastGeneration.y) >= generateEnemyThreshold) {
+        // }
+        if (Math.abs(locationDeltaSinceLastGeneration.x) >= generateBarrierThreshold || Math.abs(locationDeltaSinceLastGeneration.y) >= generateBarrierThreshold) {
+            addPlayer(new enemy());
+            
+            //generate static objects on new part of map
+            addBarrier(new barrier(imageTypes.Rock));
+
+            //reset location delta
+            locationDeltaSinceLastGeneration = { x: 0, y: 0 };
+        }
+    }
+
+    function generateObjects() {
+        //generate on entire reachable map
+        var enemiesCount = 30;
+        var barriersCount = 20;
+        for (var i = 0; i < enemiesCount; ++i) {
+            addPlayer(new enemy());
+        }
+
+        for (var i = 0; i < barriersCount; ++i) {
+            addBarrier(new barrier(imageTypes.Rock));
+        }
+    }
+
+    function addPlayer(player, minX, maxX, minY, maxY) {
         var image = player.getImage();
 
         playerInfos.push({
             player: player,
-            location: getLocationWithoutCollision(image, player.dimensions),
+            location: getLocationWithoutCollision(image, player.dimensions, minX, maxX, minY, maxY),
             image: image,
             dimensions: player.dimensions,
             gameObject: player
@@ -93,11 +129,11 @@ function game() {
             gameObject: bullet
         });
     }
-    that.addBarrier = function (barrier) {
+    function addBarrier(barrier, minX, maxX, minY, maxY) {
         var image = barrier.getImage();
         barrierInfos.push({
             barrier: barrier,
-            location: getLocationWithoutCollision(image, barrier.dimensions),
+            location: getLocationWithoutCollision(image, barrier.dimensions, minX, maxX, minY, maxY),
             image: image,
             dimensions: barrier.dimensions,
             gameObject: barrier
@@ -128,6 +164,15 @@ function game() {
     }
 
     function initializeBackground() {
+        function resetLocation() {
+            //visible game map should be on the middle of background
+            backgroundInfo.location = {
+                x: xShift,
+                y: yShift,
+                z: 0
+            };
+        };
+
         if (!backgroundInfo) {
             var xShift = -Math.round((imageTypes.Background.width - board_width) / 2);
             var yShift = -Math.round((imageTypes.Background.height - board_height) / 2);
@@ -135,50 +180,49 @@ function game() {
             var doubleYShift = yShift * 2;
 
             backgroundInfo = {};
-            backgroundInfo.resetLocation = () => {
-                //visible game map should be on the middle of background
-                backgroundInfo.location = {
-                    x: xShift,
-                    y: yShift,
-                    z: 0
-                };
+
+            function mapIsOutside() {
+                return backgroundInfo.location.x >= 0 || backgroundInfo.location.y >= 0
+                    || backgroundInfo.location.x <= doubleXShift || backgroundInfo.location.y <= doubleYShift;
             };
 
-            backgroundInfo.mapIsOutside = () => {
-                return backgroundInfo.location.x >= 0 || backgroundInfo.location.y >= 0 
-                || backgroundInfo.location.x <= doubleXShift || backgroundInfo.location.y <= doubleYShift;
-            };
+            backgroundInfo.updateLocation = function (locationDelta) {
+                backgroundInfo.location.x -= locationDelta.x;
+                backgroundInfo.location.y -= locationDelta.y;
+
+                if (mapIsOutside())
+                    resetLocation();
+            }
 
             backgroundInfo.image = new Image();
             backgroundInfo.image.src = imageTypes.Background.src;
         }
 
-        backgroundInfo.resetLocation();
+        resetLocation();
     }
 
-    function getLocationWithoutCollision(image, objectDimensions) {
+    function getLocationWithoutCollision(image, objectDimensions, minX, maxX, minY, maxY) {
         //TODO: stop when it is not possible to find correct location!
         var correctLocation = false;
         var newLocation = undefined;
 
-        function entireObjectIsOnBoard(location, size) {
-            return location.x >= 0 && location.y >= 0 &&
-                location.x + size.width <= board_width && location.y + size.height <= board_height
-        }
+        minX = minX || -maximumDistanceFromVisibleMap;
+        maxX = maxX || maxMapX;
+        minY = minY || -maximumDistanceFromVisibleMap;
+        maxY = maxY || maxMapY;
 
         do {
             newLocation = {
-                x: Math.floor((Math.random() * board_width)),
-                y: Math.floor((Math.random() * board_height)),
+                x: Math.floor(minX + (Math.random() * (maxX - minX))),
+                y: Math.floor(minY + (Math.random() * (maxY - minY))),
                 z: 0
-            }
+            };
             newLocation.z = newLocation.y + objectDimensions.height - objectDimensions.thickness;
 
             var allObjectsOnBoard = barrierInfos.concat(playerInfos, bulletInfos);
             var collisionDetected = detectObjectCollision({ location: newLocation, image: image, dimensions: objectDimensions }, allObjectsOnBoard);
-            var objectIsOnBoard = entireObjectIsOnBoard(newLocation, image);
 
-            correctLocation = !collisionDetected && objectIsOnBoard;
+            correctLocation = !collisionDetected;
         } while (!correctLocation)
 
         return newLocation;
@@ -245,12 +289,10 @@ function game() {
         bulletToRemoveIndexes.forEach(index => bulletInfos.splice(index, 1));
     }
 
-    const maximumDistanceFromVisibleMap = 200;
-    const maxX = board_width + maximumDistanceFromVisibleMap;
-    const maxY = board_height + maximumDistanceFromVisibleMap;
+    const maximumDistanceFromVisibleMap = 400;
 
     function isOutsideOfReachableMap(location) {
-        return location.x >= maxX || location.y >= maxY || location.x <= -maximumDistanceFromVisibleMap || location.y <= -maximumDistanceFromVisibleMap;
+        return location.x >= maxMapX || location.y >= maxMapY || location.x <= -maximumDistanceFromVisibleMap || location.y <= -maximumDistanceFromVisibleMap;
     }
 
     function isOutsideOfVisibleMap(location, dimensions) {
@@ -286,11 +328,8 @@ function game() {
                     objectInfo.location.z -= locationDelta.z;
                 });
 
-                backgroundInfo.location.x -= locationDelta.x;
-                backgroundInfo.location.y -= locationDelta.y;
-
-                if (backgroundInfo.mapIsOutside())
-                    backgroundInfo.resetLocation();
+                backgroundInfo.updateLocation(locationDelta);
+                objectsLocationUpdated(locationDelta);
             }
 
             //reset player location to previous value
