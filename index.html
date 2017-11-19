@@ -33,9 +33,9 @@
                 statsDiv.removeChild(statsDiv.firstChild);
             }
 
-            players.forEach(player => {
+            players.sort((p1, p2) => p2.points - p1.points).forEach(player => {
                 var playerStatsDiv = document.createElement('div');
-                playerStatsDiv.innerHTML = "<img src='" + player.getImage().src + "'/> <span> " + player.identifier + "</span> <span> hp: " + player.hp + " </span>"
+                playerStatsDiv.innerHTML = "<img src='" + player.getImage().src + "'/> <span> " + player.identifier + "</span> <span> hp: " + player.hp + " </span> <span> points: " + player.points + " </span>"
                 statsDiv.appendChild(playerStatsDiv);
             });
         }

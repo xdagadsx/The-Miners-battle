@@ -85,8 +85,8 @@ function game() {
         // if(Math.abs(locationDeltaSinceLastGeneration.x) >= generateEnemyThreshold || Math.abs(locationDeltaSinceLastGeneration.y) >= generateEnemyThreshold) {
         // }
         if (Math.abs(locationDeltaSinceLastGeneration.x) >= generateBarrierThreshold || Math.abs(locationDeltaSinceLastGeneration.y) >= generateBarrierThreshold) {
-            addPlayer(new enemy());
-            
+            addPlayer(new enemy()); //create new if less than 30 TODO
+
             //generate static objects on new part of map
             addBarrier(new barrier(imageTypes.Rock));
 
@@ -236,12 +236,7 @@ function game() {
         //check player collisions with bullets and update health
         var playersStateChanged = checkCollisionsWithBullets(playerInfos.concat(barrierInfos));
 
-        deleteNotNeededBullets();
-        //deleteAllNotReachableObjects();
-        barrierInfos.forEach(bi => bi.toRemove = isOutsideOfReachableMap(bi.location));
-        playerInfos.forEach(pi => pi.toRemove = isOutsideOfReachableMap(pi.location));
-        playerInfos = playerInfos.filter(pi => pi.player.hp > 0 && !pi.toRemove);
-        barrierInfos = barrierInfos.filter(bi => bi.barrier.hp > 0 && !bi.toRemove);
+        deleteNotNeededGameObjects();
 
         redrawVisibleObjectsOnMap();
 
@@ -249,6 +244,9 @@ function game() {
             gameConfig.onPlayersUpdated(playerInfos.map(pi => pi.player));
     }
 
+    ///Checking collision of bullets with passed objects, decreasing objects hp by damage points.
+    ///Bullet damage decreasing by damage absorbed by hit object
+    ///If bullet hit player or enemy, then damage points will be added to bullet owner points.
     function checkCollisionsWithBullets(objectInfos) {
         var playersStateChanged = false;
 
@@ -256,10 +254,14 @@ function game() {
             for (var j = 0; j < bulletInfos.length; ++j) {
                 var bulletInfo = bulletInfos[j];
                 if (collisionDetector.detectCollision(objectInfo.location, objectInfo.image, bulletInfo.location, bulletInfo.image, getCollisionRestriction(objectInfo), getCollisionRestriction(bulletInfo))) {
-                    objectInfo.gameObject.hp -= bulletInfo.bullet.damage;
-                    bulletInfo.toRemove = true;
+                    var realDamage = Math.min(objectInfo.gameObject.hp, bulletInfo.bullet.damage);
+                    objectInfo.gameObject.hp -= realDamage;
+                    bulletInfo.bullet.damage -= realDamage;
 
-                    playersStateChanged = true;
+                    if (objectInfo.gameObject instanceof enemy || objectInfo.gameObject instanceof player) {
+                        bulletInfo.bullet.owner.points += realDamage;
+                        playersStateChanged = true;
+                    }
                 }
             }
         }
@@ -278,18 +280,11 @@ function game() {
             .forEach(objectInfo => drawObject(objectInfo));
     }
 
-    function deleteNotNeededBullets() {
-        var bulletToRemoveIndexes = new Array();
-
-        for (var i = 0; i < bulletInfos.length; i++) {
-            var bulletInfo = bulletInfos[i];
-
-            if (bulletInfo.toRemove || isOutsideOfReachableMap(bulletInfo.location)) {
-                bulletToRemoveIndexes.push(i);
-            }
-        }
-
-        bulletToRemoveIndexes.forEach(index => bulletInfos.splice(index, 1));
+    ///Removing objects outside of reachable map and those whose should be destroyed according to game logic
+    function deleteNotNeededGameObjects() {
+        bulletInfos = bulletInfos.filter(bi => bi.bullet.damage > 0 && !isOutsideOfReachableMap(bi.location));
+        playerInfos = playerInfos.filter(pi => pi.player.hp > 0 && !isOutsideOfReachableMap(pi.location));
+        barrierInfos = barrierInfos.filter(bi => bi.barrier.hp > 0 && !isOutsideOfReachableMap(bi.location));
     }
 
     const maximumDistanceFromVisibleMap = 400;
@@ -361,7 +356,7 @@ function game() {
     }
 
     function shootBullet(playerInfo, bulletDirection) {
-        var bulletToBeShooted = new bullet(bulletDirection);
+        var bulletToBeShooted = new bullet(bulletDirection, playerInfo.player);
         var bulletImage = bulletToBeShooted.getImage();
 
         var bulletMove = mapDirectionToMove(bulletDirection);
