@@ -229,8 +229,8 @@ function game() {
     }
 
     function updateGame() {
-        movePlayer();
         bulletInfos.forEach(moveBullet);
+        movePlayer();
         playerInfos.filter(pi => pi != userPlayerInfo).forEach(moveBot);
 
         //check player collisions with bullets and update health
@@ -361,7 +361,12 @@ function game() {
 
         var bulletMove = mapDirectionToMove(bulletDirection);
 
-        var bulletStartLocation = { x: playerInfo.location.x, y: playerInfo.location.y };
+        //bullet should be shoot from central point of the shooter, but it cannot made a collision with him!
+        var bulletStartLocation = {
+            x: playerInfo.location.x,
+            y: playerInfo.location.z - (bulletToBeShooted.dimensions.height - bulletToBeShooted.dimensions.thickness)
+        };
+
         if (bulletMove.moveX === 1) {
             bulletStartLocation.x += playerInfo.image.width + 1;
         } else if (bulletMove.moveX === 0) {
@@ -371,11 +376,9 @@ function game() {
         }
 
         if (bulletMove.moveY === 1) {
-            bulletStartLocation.y += playerInfo.image.height + 1;
-        } else if (bulletMove.moveY === 0) {
-            bulletStartLocation.y += (playerInfo.image.height - bulletImage.height) / 2;
+            bulletStartLocation.y += playerInfo.dimensions.thickness + 1;
         } else if (bulletMove.moveY === -1) {
-            bulletStartLocation.y -= bulletImage.height + 1;
+            bulletStartLocation.y -= bulletToBeShooted.dimensions.thickness + 1;
         }
 
         bulletStartLocation.z = bulletStartLocation.y + bulletToBeShooted.dimensions.height - bulletToBeShooted.dimensions.thickness;
